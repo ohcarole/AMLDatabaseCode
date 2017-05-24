@@ -993,6 +993,7 @@ def set_add_on_agent(cnxdict=None):
                     WHEN singleregimen NOT LIKE '{1}' AND multiregimen NOT LIKE '{1}' THEN CONCAT(druglist,',{2}')
                     ELSE druglist
                     END
+                ELSE druglist
             END;
 
             """.format(pat1,pat2,drug)
