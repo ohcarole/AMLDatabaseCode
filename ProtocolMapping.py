@@ -726,7 +726,7 @@ def set_single_agent_regimen(cnxdict=None):
     set_sgn(cnxdict)
     set_mdx(cnxdict)
     set_bmn(cnxdict)
-    set_arac(cnxdict)
+    # set_arac(cnxdict)
     set_amg(cnxdict)
     # druglist =   ([['inclusionpattern'  ,   'regimen'              ,   'description'                               ]])
     druglist=       [['IGN'               ,   'IGN-523'              ,   'IGN-523 (UW13049) -- Study drug:  IGN-523' ]]
