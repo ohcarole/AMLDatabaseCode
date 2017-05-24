@@ -997,6 +997,7 @@ def set_add_on_agent(cnxdict=None):
     dosqlexecute(cnxdict)
     return None
 
+
 def build_all(cnxdict=None):
     if cnxdict is None:
         cnxdict = getconnection('hma')  # get a connection to the hma section for an example
