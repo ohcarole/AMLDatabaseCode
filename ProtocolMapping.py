@@ -678,10 +678,11 @@ def set_arac(cnxdict):
                     WHEN protocol RLIKE 'H.{1}DAC' THEN CONCAT(mapto,',HiDAC')
                     WHEN protocol RLIKE 'LDAC'      THEN CONCAT(mapto,',LDAC')
                     WHEN protocol RLIKE 'IDAC'      THEN CONCAT(mapto,',IDAC')
-                    WHEN mapto    RLIKE '7[+]3'     THEN CONCAT(mapto,',7+7')
+                    WHEN mapto    RLIKE '7[+]3'     THEN CONCAT(mapto,',7+3')
                     WHEN protocol RLIKE 'ARA.{1}C'  THEN CONCAT(mapto,',ARA-C')
                     WHEN protocol RLIKE 'CYTARA'    THEN CONCAT(mapto,',ARA-C')
                 ELSE mapto
+        END;
     """
     dosqlexecute(cnxdict)
     return None
