@@ -666,6 +666,7 @@ def set_bmn(cnxdict):
     dosqlexecute(cnxdict)
     return None
 
+
 def set_arac(cnxdict):
     """
     ARA-C/HiDAC/LDAC/IDAC -- varying doses of cytarabine (ARA-C)
@@ -677,7 +678,7 @@ def set_arac(cnxdict):
                     WHEN protocol RLIKE 'H.{1}DAC' THEN CONCAT(mapto,',HiDAC')
                     WHEN protocol RLIKE 'LDAC'      THEN CONCAT(mapto,',LDAC')
                     WHEN protocol RLIKE 'IDAC'      THEN CONCAT(mapto,',IDAC')
-                    WHEN mapto    RLIKE '7[+]3'     THEN mapto
+                    WHEN mapto    RLIKE '7[+]3'     THEN CONCAT(mapto,',7+7')
                     WHEN protocol RLIKE 'ARA.{1}C'  THEN CONCAT(mapto,',ARA-C')
                     WHEN protocol RLIKE 'CYTARA'    THEN CONCAT(mapto,',ARA-C')
                 ELSE mapto
@@ -726,10 +727,11 @@ def set_single_agent_regimen(cnxdict=None):
     set_sgn(cnxdict)
     set_mdx(cnxdict)
     set_bmn(cnxdict)
-    # set_arac(cnxdict)
+    set_arac(cnxdict)
     set_amg(cnxdict)
+    druglist = []
     # druglist =   ([['inclusionpattern'  ,   'regimen'              ,   'description'                               ]])
-    druglist=       [['IGN'               ,   'IGN-523'              ,   'IGN-523 (UW13049) -- Study drug:  IGN-523' ]]
+    druglist.extend([['IGN'               ,   'IGN-523'              ,   'IGN-523 (UW13049) -- Study drug:  IGN-523' ]])
     druglist.extend([['[^0-9]13049[^0-9]' ,   'IGN-523 (UW13049)'    ,   'IGN-523 (UW13049) -- Study drug:  IGN-523' ]])
     druglist.extend([['PR104'             ,   'PR104'                ,   'PR104 -- Study drug:  PR104'               ]])
     druglist.extend([['FLX'               ,   'FLX925'               ,   'FLX925'                                    ]])
