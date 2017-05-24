@@ -1,6 +1,5 @@
 from MySQLdbUtils import *
 
-cnxdict = getconnection('hma') # get a connection to the hma section for an example
 
 
 def standardizeprotocollist(cnxdict):
@@ -644,35 +643,17 @@ def set_combo_regimen(cnxdict):
 
 
 def set_single_regimen(cnxdict):
-    set_7_plus_3(cnxdict)
-    set_5_plus_2(cnxdict)
-    set_gclam_variant(cnxdict)
-    set_mec_variant(cnxdict)
-    set_mice(cnxdict)
-    set_flag(cnxdict)
-    set_atra_ato(cnxdict)
-    set_iap_iavp(cnxdict)
-    set_hedgehog(cnxdict)
-    set_epi_prime_2588(cnxdict)
-    set_epoch(cnxdict)
-    set_abt_199(cnxdict)
-    set_tosedostat(cnxdict)
-    set_vorino_2288_2200(cnxdict)
-    set_cpx_351(cnxdict)
-    set_bend_ida(cnxdict)
-    set_deci_arac(cnxdict)
-    set_clof_ldac(cnxdict)
-    set_mito_vp16(cnxdict)
-    set_csa_prava_mito_vp16_2409(cnxdict)
-    set_mvp16(cnxdict)
-    set_mv_csa_prav(cnxdict)
-    set_mvp16(cnxdict)
+    single=(('SORA','SORA','sorafenib'))
+    print(single)
     return None
 
-def build_all(cnxdict):
+def build_all(cnxdict=None):
+    if cnxdict is None:
+        cnxdict = getconnection('hma')  # get a connection to the hma section for an example
     build_protocol_list(cnxdict)
     set_wildcard_flag(cnxdict)
     map_hct(cnxdict)
     set_no_regimen(cnxdict)
     set_radiation(cnxdict)
     set_combo_regimen(cnxdict)
+    set_single_regimen(cnxdict)
