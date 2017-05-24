@@ -176,6 +176,33 @@ def set_radiation(cnxdict):
     return None
 
 
+def set_combo_regimen(cnxdict):
+    set_7_plus_3(cnxdict)
+    set_5_plus_2(cnxdict)
+    set_gclam_variant(cnxdict)
+    set_mec_variant(cnxdict)
+    set_mice(cnxdict)
+    set_flag(cnxdict)
+    set_atra_ato(cnxdict)
+    set_iap_iavp(cnxdict)
+    set_hedgehog(cnxdict)
+    set_epi_prime_2588(cnxdict)
+    set_epoch(cnxdict)
+    set_abt_199(cnxdict)
+    set_tosedostat(cnxdict)
+    set_vorino_2288_2200(cnxdict)
+    set_cpx_351(cnxdict)
+    set_bend_ida(cnxdict)
+    set_deci_arac(cnxdict)
+    set_clof_ldac(cnxdict)
+    set_mito_vp16(cnxdict)
+    set_csa_prava_mito_vp16_2409(cnxdict)
+    set_mvp16(cnxdict)
+    set_mv_csa_prav(cnxdict)
+    set_mvp16(cnxdict)
+    return None
+
+
 def set_7_plus_3(cnxdict):
     """
     Set Regimen for patients on a 7+3 protocol
@@ -557,19 +584,6 @@ def set_csa_prava_mito_vp16_2409(cnxdict):
     return None
 
 
-def skeleton(cnxdict):
-    """
-
-    :param cnxdict: data dictionary object
-    :return: None
-    """
-    cnxdict['sql'] = """
-        <SQL>
-    """
-    dosqlexecute(cnxdict)
-    return None
-
-
 def set_mvp16(cnxdict):
     """
     MVP16 -- mitoxantrone, etoposide
@@ -602,6 +616,99 @@ def set_mv_csa_prav(cnxdict):
     return None
 
 
+def set_sgn(cnxdict):
+    """
+    SGN/SGN-CD123A/SGN-CD33A
+    :param cnxdict: data dictionary object
+    :return: None
+    """
+    cnxdict['sql'] = """
+        UPDATE protocollist SET mapto = CASE 
+                    WHEN protocol RLIKE 'SGN\.*CD123'       THEN CONCAT(mapto,',SGN-CD123A')
+                    WHEN protocol RLIKE 'SGN\.*CD33'        THEN CONCAT(mapto,',SGN-CD33A')
+                    WHEN protocol RLIKE '[^0-9]2690[^0-9]'  THEN CONCAT(mapto,',SGN-CD33A')
+                    WHEN protocol RLIKE 'SGN'               THEN CONCAT(mapto,',SGN')
+                ELSE mapto
+            END;
+    """
+    dosqlexecute(cnxdict)
+    return None
+
+
+def set_mdx(cnxdict):
+    """
+    MDX (UW09036) 
+    :param cnxdict: data dictionary object
+    :return: None
+    """
+    cnxdict['sql'] = """
+        UPDATE protocollist SET mapto = CASE 
+                    WHEN protocol RLIKE 'MDX'                    THEN CONCAT(mapto,',MDX (UW09036)')
+                    WHEN protocol RLIKE '[^0-9]0{0,1}9036[^0-9]' THEN CONCAT(mapto,',MDX (UW09036)')
+                ELSE mapto
+            END;
+    """
+    dosqlexecute(cnxdict)
+    return None
+
+
+def set_bmn(cnxdict):
+    """
+    BMN (UW11003)
+    :param cnxdict: data dictionary object
+    :return: None
+    """
+    cnxdict['sql'] = """
+        UPDATE protocollist SET mapto = CASE 
+                    WHEN protocol RLIKE 'BMN'               THEN CONCAT(mapto,',BMN (UW11003)')
+                    WHEN protocol RLIKE '[^0-9]11003[^0-9]' THEN CONCAT(mapto,',BMN (UW11003)')
+                ELSE mapto
+            END;
+    """
+    dosqlexecute(cnxdict)
+    return None
+
+def set_arac(cnxdict):
+    """
+    ARA-C/HiDAC/LDAC/IDAC -- varying doses of cytarabine (ARA-C)
+    :param cnxdict: data dictionary object
+    :return: None
+    """
+    cnxdict['sql'] = """
+        UPDATE protocollist SET mapto = CASE 
+                    WHEN protocol RLIKE 'H\.{1}DAC' THEN CONCAT(mapto,',HiDAC')
+                    WHEN protocol RLIKE 'LDAC'      THEN CONCAT(mapto,',LDAC')
+                    WHEN protocol RLIKE 'IDAC'      THEN CONCAT(mapto,',IDAC')
+                    WHEN mapto    RLIKE '7[+]3'     THEN mapto
+                    WHEN protocol RLIKE 'ARA.{1}C'  THEN CONCAT(mapto,',ARA-C')
+                    WHEN protocol RLIKE 'CYTARA'    THEN CONCAT(mapto,',ARA-C')
+                ELSE mapto
+    """
+    dosqlexecute(cnxdict)
+    return None
+
+
+def set_amg(cnxdict):
+    """
+    AMG-232/AMG-330/ADCT-301 
+    :param cnxdict: data dictionary object
+    :return: None
+    """
+    cnxdict['sql'] = """
+        UPDATE protocollist SET mapto = CASE 
+                    WHEN protocol RLIKE 'AMG\.{1}232'       THEN CONCAT(mapto,',AMG-232 (UW13037)')
+                    WHEN protocol RLIKE '[^0-9]13037[^0-9]' THEN CONCAT(mapto,',AMG-232 (UW13037)')
+                    WHEN protocol RLIKE 'AMG\.{1}330'       THEN CONCAT(mapto,',AMG-330 (9382)')
+                    WHEN protocol RLIKE '[^0-9]9382[^0-9]'  THEN CONCAT(mapto,',AMG-330 (9382)')
+                    WHEN protocol RLIKE 'ADCT\.{1}301'      THEN CONCAT(mapto,',ADCT-301 (9513)')
+                    WHEN protocol RLIKE '[^0-9]9513[^0-9]'  THEN CONCAT(mapto,',ADCT-301 (9513')
+                ELSE mapto
+            END;
+    """
+    dosqlexecute(cnxdict)
+    return None
+
+
 def skeleton(cnxdict):
     """
 
@@ -615,37 +722,92 @@ def skeleton(cnxdict):
     return None
 
 
-def set_combo_regimen(cnxdict):
-    set_7_plus_3(cnxdict)
-    set_5_plus_2(cnxdict)
-    set_gclam_variant(cnxdict)
-    set_mec_variant(cnxdict)
-    set_mice(cnxdict)
-    set_flag(cnxdict)
-    set_atra_ato(cnxdict)
-    set_iap_iavp(cnxdict)
-    set_hedgehog(cnxdict)
-    set_epi_prime_2588(cnxdict)
-    set_epoch(cnxdict)
-    set_abt_199(cnxdict)
-    set_tosedostat(cnxdict)
-    set_vorino_2288_2200(cnxdict)
-    set_cpx_351(cnxdict)
-    set_bend_ida(cnxdict)
-    set_deci_arac(cnxdict)
-    set_clof_ldac(cnxdict)
-    set_mito_vp16(cnxdict)
-    set_csa_prava_mito_vp16_2409(cnxdict)
-    set_mvp16(cnxdict)
-    set_mv_csa_prav(cnxdict)
-    set_mvp16(cnxdict)
+def set_single_agent_regimen(cnxdict=None):
+    if cnxdict is None:
+        cnxdict = getconnection('hma')  
+    set_sgn(cnxdict)
+    set_mdx(cnxdict)
+    set_bmn(cnxdict)
+    set_arac(cnxdict)
+    set_amg(cnxdict)
+    # druglist =   ([['inclusionpattern'  ,   'regimen'              ,   'description'                               ]])
+    druglist=       [['IGN'               ,   'IGN-523'              ,   'IGN-523 (UW13049) -- Study drug:  IGN-523' ]]
+    druglist.extend([['[^0-9]13049[^0-9]' ,   'IGN-523 (UW13049)'    ,   'IGN-523 (UW13049) -- Study drug:  IGN-523' ]])
+    druglist.extend([['PR104'             ,   'PR104'                ,   'PR104 -- Study drug:  PR104'               ]])
+    druglist.extend([['FLX'               ,   'FLX925'               ,   'FLX925'                                    ]])
+    druglist.extend([['[^0-9]15067[^0-9]' ,   'FLX925'               ,   'FLX925'                                    ]])
+    druglist.extend([['MEK'               ,   'MEK INHIBITOR'        ,   'MK-2206 (2466)'                            ]])
+    druglist.extend([['[^0-9]2466[^0-9]'  ,   'MEK INHIBITOR'        ,   'MK-2206 (2466)'                            ]])
+    druglist.extend([['[^0-9]2498[^0-9]'  ,   'CD8+ T Cells (2498)'  ,   'CD8+ T Cells (2498)'                       ]])
+    druglist.extend([['[^0-9]2246[^0-9]'  ,   'SB1518 (2246)'        ,   'SB1518 (2246)'                             ]])
+    druglist.extend([['[^0-9]2513[^0-9]'  ,   'CWP (2513)'           ,   'CWP (2513)'                                ]])
+    druglist.extend([['[^0-9]2534[^0-9]'  ,   'ON 01910.Na (2534)'   ,   'ON 01910.Na (2534)'                        ]])
+    druglist.extend([['[^0-9]2572[^0-9]'  ,   'AC-225 (2572)'        ,   'AC-225 (2572)'                             ]])
+    druglist.extend([['[^0-9]2532[^0-9]'  ,   'PLX3397 (2532)'       ,   'PLX3397 (2532)'                            ]])
+    druglist.extend([['[^0-9]7971[^0-9]'  ,   'GO (7971)'            ,   'GO (7971)'                                 ]])
+    druglist.extend([[' GO '              ,   'GO (7971)'            ,   'GO (7971)'                                 ]])
+    druglist.extend([[' SORA '            ,   'SORA'                 ,   'SORA'                                      ]])
+    druglist.extend([[' SORAFINIB '       ,   'SORA'                 ,   'SORA'                                      ]])
+    druglist.extend([[' LENALIDOMIDE '    ,   'LENALIDOMIDE'         ,   'LENALIDOMIDE'                              ]])
+    druglist.extend([[' ATRA '            ,   'ATRA'                 ,   'ATRA'                                      ]])
+    druglist.extend([[' HU '              ,   'HU'                   ,   'HU'                                        ]])
+    druglist.extend([[' CLADRABINE '      ,   'CLADRABINE'           ,   'CLADRABINE'                                ]])
+    druglist.extend([[' CLOFARABINE '     ,   'CLOFARABINE'          ,   'CLOFARABINE'                               ]])
+    druglist.extend([[' DACOGEN '         ,   'DECI'                 ,   'DECI'                                      ]])
+    druglist.extend([[' IDARUBICIN '      ,   'IDARUBICIN'           ,   'IDARUBICIN'                                ]])
+    druglist.extend([[' NALARABINE '      ,   'NALARABINE'           ,   'NALARABINE'                                ]])
+    druglist.extend([[' REVLAMID '        ,   'REVLAMID'             ,   'REVLAMID'                                  ]])
+    druglist.extend([[' TEMOZOLOMIDE '    ,   'TEMOZOLOMIDE'         ,   'TEMOZOLOMIDE'                              ]])
+    druglist.extend([[' IBURTINIB '       ,   'IBRUTINIB'            ,   'IBRUTINIB'                                 ]])
+    druglist.extend([[' IBRUTINIB '       ,   'IBRUTINIB'            ,   'IBRUTINIB'                                 ]])
+    druglist.extend([[' BORTEZOMIB '      ,   'BORTEZOMIB'           ,   'BORTEZOMIB'                                ]])
+    druglist.extend([[' PRALATREXATE '    ,  'PRALATREXATE'          ,   'PRALATREXATE'                              ]])
+    druglist.extend([[' WIS '             ,   'WIS'                  ,   'WIS -- withdrawl of immunosuppression'     ]])
+    druglist.extend([[' OSTEOK '          ,   'OSTEOK'               ,   'OSTEOK'                                    ]])
+    druglist.extend([[' CEP701 '          ,   'CEP701'               ,   'CEP701 -- lestaurtinib'                    ]])
+    druglist.extend([[' DACTINOMYCIN '    ,   'DACTINOMYCIN'         ,   'DACTINOMYCIN'                              ]])
+    druglist.extend([[' ACT-D '           ,   'DACTINOMYCIN'         ,   'DACTINOMYCIN'                              ]])
+    druglist.extend([[' IT MTX '          ,   'IT MTX'               ,   'IT MTX'                                    ]])
+    
+    casestmt =''
+    
+    for pat,drug,desc in druglist:
+        casestmt = casestmt + 'WHEN protocol = "{0}" THEN CONCAT(mapto,",{1}") '.format(pat,drug)
+    
+    sql = """UPDATE protocollist SET mapto = CASE 
+            {0}
+        ELSE mapto
+    END;
+    """.format(casestmt)
+    
+    return sql
+
+
+
+def skeleton(cnxdict):
+    """
+
+    :param cnxdict: data dictionary object
+    :return: None
+    """
+    cnxdict['sql'] = """
+        <SQL>
+    """
+    dosqlexecute(cnxdict)
     return None
 
 
-def set_single_regimen(cnxdict):
-    single=(('SORA','SORA','sorafenib'))
-    print(single)
+def set_add_on_agent(cnxdict=None):
+    if cnxdict is None:
+        cnxdict = getconnection('hma')  # get a connection to the hma section for an example
+    # allitem =    [['exclusionpattern',   'inclusionpattern',   'agent'                ]]
+    allitem.extend([['SORA'            ,   'SORA'            ,   'sorafenib'            ]])
+    allitem.extend([['GO'              ,   '[+].?GO'         ,   'gemtuzumab ozogamicin']])
+    allitem.extend([['VP16'            ,   '[+].?VP16'       ,   'etoposide'            ]])
+    allitem.extend([['VP'              ,   '[+].?VP'         ,   'vincristine'          ]])
+    allitem.extend([[''                ,   ''                ,   ''                     ]])
     return None
+
 
 def build_all(cnxdict=None):
     if cnxdict is None:
@@ -656,4 +818,6 @@ def build_all(cnxdict=None):
     set_no_regimen(cnxdict)
     set_radiation(cnxdict)
     set_combo_regimen(cnxdict)
-    set_single_regimen(cnxdict)
+    set_single_agent_regimen(cnxdict)
+    set_add_on_agent(cnxdict)
+    return None
