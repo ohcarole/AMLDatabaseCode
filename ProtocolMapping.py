@@ -708,20 +708,7 @@ def set_amg(cnxdict):
     return None
 
 
-def skeleton(cnxdict):
-    """
-
-    :param cnxdict: data dictionary object
-    :return: None
-    """
-    cnxdict['sql'] = """
-        <SQL>
-    """
-    dosqlexecute(cnxdict)
-    return None
-
-
-def set_single_agent_regimen(cnxdict=None):
+def set_single_agent_mapping(cnxdict=None):
     if cnxdict is None:
         cnxdict = getconnection('hma')  
     set_sgn(cnxdict)
@@ -835,6 +822,137 @@ def set_hma(cnxdict):
     return None
 
 
+def set_non_induction(cnxdict):
+    """
+    Assign Non-Induction
+    :param cnxdict: data dictionary object
+    :return: None
+    """
+    cnxdict['sql'] = """
+        UPDATE protocollist SET noninduction =  CASE
+                WHEN mapto RLIKE 'PALLIATIVE[/]HOSPICE' THEN 'NO TREATMENT (PALLIATIVE/HOSPICE)'
+                WHEN mapto RLIKE 'NO TREATMENT'         THEN 'NO TREATMENT'
+                WHEN mapto RLIKE 'CONSULT'              THEN 'NO TREATMENT (CONSULT)'
+                WHEN mapto RLIKE 'XRT'                  THEN 'XRT'
+                ELSE noninduction
+            END;
+    """
+    dosqlexecute(cnxdict)
+    return None
+
+
+def set_multi_agent_regimen(cnxdict):
+    """
+    Assign Multi-Agent Induction Regimen
+    :param cnxdict: data dictionary object
+    :return: None
+    """
+    cnxdict['sql'] = """
+        UPDATE protocollist SET multiregimen =  CASE
+                WHEN mapto RLIKE '5[+]2'                     THEN '5+2'
+                WHEN mapto RLIKE '7[+]3'                     THEN '7+3'
+                WHEN mapto RLIKE 'ATRA[+]ATO'                THEN 'ATRA+ATO'
+                WHEN mapto RLIKE 'D[-]GCLAM'                 THEN 'D-GCLAM'
+                WHEN mapto RLIKE 'G[-]CLAM'                  THEN 'G-CLAM'
+                WHEN mapto RLIKE 'G[-]CLAC'                  THEN 'G-CLAC'
+                WHEN mapto RLIKE 'G[-]CLA'                   THEN 'G-CLA'
+                WHEN mapto RLIKE 'D[-]MEC'                   THEN 'D-MEC'
+                WHEN mapto RLIKE 'E[-]MEC'                   THEN 'E-MEC'
+                WHEN mapto RLIKE 'MEC'                       THEN 'MEC'
+                WHEN mapto RLIKE 'CLAM'                      THEN 'CLAM'
+                WHEN mapto RLIKE 'CLAG'                      THEN 'CLAG'
+                WHEN mapto RLIKE 'EPI PRIME [(]2588[)]'      THEN 'CLAG'
+                WHEN mapto RLIKE 'EPOCH'                     THEN 'EPOCH'
+                WHEN mapto RLIKE 'FLAG[-]IDA'                THEN 'FLAG-IDA'
+                WHEN mapto RLIKE 'FLAG'                      THEN 'FLAG'
+                WHEN mapto RLIKE 'IAP'                       THEN 'IAP'
+                WHEN mapto RLIKE 'MICE'                      THEN 'MICE'
+                WHEN mapto RLIKE 'TOSE'                      THEN 'TOSEDOSTAT'
+                WHEN mapto RLIKE '2288'                      THEN 'AZA+GO+VORINO'
+                WHEN mapto RLIKE '2200'                      THEN 'VORINO+GO'
+                WHEN mapto RLIKE 'AZA[+]VORINO'              THEN 'AZA+VORINO'
+                WHEN mapto RLIKE 'CPX'                       THEN 'CPX-351'
+                WHEN mapto RLIKE 'BEND'                      THEN 'BEND-IDA'
+                WHEN mapto RLIKE 'DECI ARA-C'                THEN 'DECI+ARA-C'
+                WHEN mapto RLIKE 'CLOFARABINE[+]LDAC'        THEN 'CLOF+LDAC'
+                WHEN mapto RLIKE 'MITO[+]VP16'               THEN 'MITO+VP16'
+                WHEN mapto RLIKE '2409'                      THEN '2409 (CSA/PRAVA/MITO/VP16)'
+                WHEN mapto RLIKE '2534'                      THEN 'ON 01910.Na (2534)'
+                WHEN mapto RLIKE '2572'                      THEN 'AC-225 (2572)'
+                WHEN mapto RLIKE 'MVP16'                     THEN 'MVP16'
+                WHEN mapto RLIKE 'MVP'                       THEN 'MVP'
+                ELSE multiregimen
+            END;
+    """
+    dosqlexecute(cnxdict)
+    return None
+
+
+def set_single_agent_regimen(cnxdict):
+    """
+    Assign Single-Agent Induction Regimen
+    :param cnxdict: data dictionary object
+    :return: None
+    """
+    cnxdict['sql'] = """
+        UPDATE protocollist SET singleregimen =  CASE
+                WHEN mapto RLIKE 'ABT[-]199'            THEN 'ABT-199'
+                WHEN mapto RLIKE 'ADCT[-]301'           THEN 'ADCT-301'
+                WHEN mapto RLIKE 'AMG[-]232'            THEN 'AMG-232'
+                WHEN mapto RLIKE 'AMG[-]330'            THEN 'AMG-330'
+                WHEN mapto RLIKE 'BMN [(]UW11003[)]'    THEN 'BMN (UW11003)'
+                WHEN mapto RLIKE 'MDX [(]UW09036[)]'    THEN 'MDX (UW09036)'
+                WHEN mapto RLIKE 'SGN[-]CD33A'          THEN 'SGN-CD33A'
+                WHEN mapto RLIKE 'SGN[-]CD123A'         THEN 'SGN-CD123A'
+                WHEN mapto RLIKE '2513'                 THEN 'CWP (2513)'
+                WHEN mapto RLIKE 'PR104'                THEN 'PR104'
+                WHEN mapto RLIKE 'IGN[-]523'            THEN 'IGN-523'
+                WHEN mapto RLIKE '2534'                 THEN 'ON 01910.Na (2534)'
+                ELSE singleregimen
+            END;
+    """
+    dosqlexecute(cnxdict)
+    return None
+
+
+def skeleton(cnxdict):
+    """
+
+    :param cnxdict: data dictionary object
+    :return: None
+    """
+    cnxdict['sql'] = """
+        <SQL>
+    """
+    dosqlexecute(cnxdict)
+    return None
+
+
+def skeleton(cnxdict):
+    """
+
+    :param cnxdict: data dictionary object
+    :return: None
+    """
+    cnxdict['sql'] = """
+        <SQL>
+    """
+    dosqlexecute(cnxdict)
+    return None
+
+
+def skeleton(cnxdict):
+    """
+
+    :param cnxdict: data dictionary object
+    :return: None
+    """
+    cnxdict['sql'] = """
+        <SQL>
+    """
+    dosqlexecute(cnxdict)
+    return None
+
 
 def skeleton(cnxdict):
     """
@@ -870,9 +988,11 @@ def build_all(cnxdict=None):
     set_no_regimen(cnxdict)
     set_radiation(cnxdict)
     set_combo_regimen(cnxdict)
-    set_single_agent_regimen(cnxdict)
+    set_single_agent_mapping(cnxdict)
     set_hma(cnxdict)
-
+    set_non_induction(cnxdict)
+    set_multi_agent_regimen(cnxdict)
+    set_single_agent_regimen(cnxdict)
 
     set_add_on_agent(cnxdict)
     return None
