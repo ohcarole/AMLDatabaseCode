@@ -970,12 +970,20 @@ def skeleton(cnxdict):
 def set_add_on_agent(cnxdict=None):
     if cnxdict is None:
         cnxdict = getconnection('hma')  # get a connection to the hma section for an example
-    allitem =     ([['exclusionpattern',   'inclusionpattern',   'agent'                ]])
-    allitem.extend([['SORA'            ,   'SORA'            ,   'sorafenib'            ]])
-    allitem.extend([['GO'              ,   '[+].?GO'         ,   'gemtuzumab ozogamicin']])
-    allitem.extend([['VP16'            ,   '[+].?VP16'       ,   'etoposide'            ]])
-    allitem.extend([['VP'              ,   '[+].?VP'         ,   'vincristine'          ]])
-    allitem.extend([[''                ,   ''                ,   ''                     ]])
+    allitem =     ([['exclusionpattern1',   'exclusionpattern2',   'agent'                ]])
+    allitem.extend([['SORA'             ,   'SORA'             ,   'sorafenib'            ]])
+    allitem.extend([['GO'               ,   '[+].?GO'          ,   'gemtuzumab ozogamicin']])
+    allitem.extend([['VP16'             ,   '[+].?VP16 '       ,   'etoposide'            ]])
+    allitem.extend([['ETOP'             ,   'ETOP'             ,   'etoposide'            ]])
+    allitem.extend([['VP'               ,   '[+].?VP'          ,   'vincristine'          ]])
+    allitem.extend([['CLO'              ,   'CLO'              ,   'clofarabine'          ]])
+    allitem.extend([['BORT'             ,   'BORT'             ,   'bortezomib'           ]])
+    allitem.extend([['PRAVA'            ,   'PRAVA'            ,   'pravastatin'          ]])
+    allitem.extend([['DECI'             ,   'DECI'             ,   'decitabine'           ]])
+    allitem.extend([['CEP'              ,   'CEP'              ,   'ibrutinib'            ]])
+    allitem.extend([['IB(UR){2}'        ,   'IB(UR){2}'        ,   'lestaurtinib'         ]])
+    allitem.extend([['RITUX'            ,   'RITUX'            ,   'rituximab'            ]])
+    allitem.extend([['MITO'             ,   'MITO'             ,   'mitoxantrone'         ]])
     return None
 
 
