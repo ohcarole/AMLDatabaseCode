@@ -970,22 +970,32 @@ def skeleton(cnxdict):
 def set_add_on_agent(cnxdict=None):
     if cnxdict is None:
         cnxdict = getconnection('hma')  # get a connection to the hma section for an example
-    allitem =     ([['exclusionpattern1',   'exclusionpattern2',   'agent'                ]])
-    allitem.extend([['SORA'             ,   'SORA'             ,   'sorafenib'            ]])
-    allitem.extend([['GO'               ,   '[+].?GO'          ,   'gemtuzumab ozogamicin']])
-    allitem.extend([['VP16'             ,   '[+].?VP16 '       ,   'etoposide'            ]])
-    allitem.extend([['ETOP'             ,   'ETOP'             ,   'etoposide'            ]])
-    allitem.extend([['VP'               ,   '[+].?VP'          ,   'vincristine'          ]])
-    allitem.extend([['CLO'              ,   'CLO'              ,   'clofarabine'          ]])
-    allitem.extend([['BORT'             ,   'BORT'             ,   'bortezomib'           ]])
-    allitem.extend([['PRAVA'            ,   'PRAVA'            ,   'pravastatin'          ]])
-    allitem.extend([['DECI'             ,   'DECI'             ,   'decitabine'           ]])
-    allitem.extend([['CEP'              ,   'CEP'              ,   'ibrutinib'            ]])
-    allitem.extend([['IB(UR){2}'        ,   'IB(UR){2}'        ,   'lestaurtinib'         ]])
-    allitem.extend([['RITUX'            ,   'RITUX'            ,   'rituximab'            ]])
-    allitem.extend([['MITO'             ,   'MITO'             ,   'mitoxantrone'         ]])
-    return None
+    druglist =     ([['exclusionpattern1',   'exclusionpattern2',   'agent'                ]])
+    druglist.extend([['[+].?SORA'        ,   'SORA'             ,   'sorafenib'            ]])
+    druglist.extend([['[+].?GO'          ,   'GO'               ,   'gemtuzumab ozogamicin']])
+    druglist.extend([['[+].?VP16'        ,    'VP16 '           ,   'etoposide'            ]])
+    druglist.extend([['[+].?ETOP'        ,   'ETOP'             ,   'etoposide'            ]])
+    druglist.extend([['[+].?VP'          ,   '[+].?VP'          ,   'vincristine'          ]])
+    druglist.extend([['[+].?CLO'         ,   'CLO'              ,   'clofarabine'          ]])
+    druglist.extend([['[+].?BORT'        ,   'BORT'             ,   'bortezomib'           ]])
+    druglist.extend([['[+].?PRAVA'       ,   'PRAVA'            ,   'pravastatin'          ]])
+    druglist.extend([['[+].?DECI'        ,   'DECI'             ,   'decitabine'           ]])
+    druglist.extend([['[+].?CEP'         ,   'CEP'              ,   'ibrutinib'            ]])
+    druglist.extend([['[+].?IB(UR){2}'   ,   'IB(UR){2}'        ,   'lestaurtinib'         ]])
+    druglist.extend([['[+].?RITUX'       ,   'RITUX'            ,   'rituximab'            ]])
+    druglist.extend([['[+].?MITO'        ,   'MITO'             ,   'mitoxantrone'         ]])
 
+    stmt = ''
+    for pat1, pat2, drug in druglist:
+        stmt = stmt + 'UPDATE protocollist SET druglist = CASE '
+        stmt = stmt + '    WHEN CONCAT('+',protocol) RLIKE "{0}" THEN CASE '.format(pat1)
+        stmt = stmt + 'WHEN singleregimen NOT LIKE "{0}" AND multiregiment NOT LIKE "{0}" THEN CONCAT(druglist,",{1}") '.format(pat2, drug)
+        stmt = stmt + 'ELSE druglist '
+        stmt = stmt + 'END;'
+
+    cnxdict['sql'] = stmt
+    dosqlexecute(cnxdict)
+    return None
 
 def build_all(cnxdict=None):
     if cnxdict is None:
