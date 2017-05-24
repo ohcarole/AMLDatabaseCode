@@ -780,11 +780,60 @@ def set_single_agent_regimen(cnxdict=None):
             ELSE mapto
         END;
     """.format( stmt )
-
-    print cnxdict['sql']
-    
     dosqlexecute(cnxdict)
     return None
+
+
+def set_aza(cnxdict):
+    """
+    AZA
+    :param cnxdict: data dictionary object
+    :return: None
+    """
+    cnxdict['sql'] = """
+        UPDATE protocollist SET mapto = CASE
+                    WHEN protocol = ' AZA '                   THEN CONCAT(mapto,',AZA')
+                    WHEN protocol = ' VIDAZA '                THEN CONCAT(mapto,',AZA')
+                    WHEN protocol = ' AZACITIDINE '           THEN CONCAT(mapto,',AZA')
+                    WHEN protocol RLIKE ' AZA[ ]{0,1}[+]{1}'  THEN CONCAT(mapto,',AZA')
+                ELSE mapto
+            END
+            WHERE mapto='';
+    """
+    dosqlexecute(cnxdict)
+    return None
+
+
+def set_deci(cnxdict):
+    """
+    DECI
+    :param cnxdict: data dictionary object
+    :return: None
+    """
+    cnxdict['sql'] = """
+        UPDATE protocollist SET mapto = CASE
+                    WHEN protocol = ' DACOGEN '            THEN CONCAT(mapto,',DECI')
+                    WHEN protocol = ' DAC '                THEN CONCAT(mapto,',DECI')
+                    WHEN protocol RLIKE ' DECI.{0,6}[ ]*'  THEN CONCAT(mapto,',DECI')
+                    WHEN protocol RLIKE '^ DECI.{0,6}[ ]*' THEN CONCAT(mapto,',DECI')
+                ELSE mapto
+            END
+            WHERE mapto='';
+    """
+    dosqlexecute(cnxdict)
+    return None
+
+
+def set_hma(cnxdict):
+    """
+    map protocols to HMA (aza/deci)
+    :param cnxdict: data dictionary object
+    :return: None
+    """
+    set_aza(cnxdict)
+    set_deci(cnxdict)
+    return None
+
 
 
 def skeleton(cnxdict):
@@ -822,5 +871,8 @@ def build_all(cnxdict=None):
     set_radiation(cnxdict)
     set_combo_regimen(cnxdict)
     set_single_agent_regimen(cnxdict)
+    set_hma(cnxdict)
+
+
     set_add_on_agent(cnxdict)
     return None
