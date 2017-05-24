@@ -1,7 +1,6 @@
 from MySQLdbUtils import *
 
 
-
 def standardizeprotocollist(cnxdict):
     """
     Standardize data if needed
@@ -774,10 +773,11 @@ def set_single_agent_regimen(cnxdict=None):
     for pat,drug,desc in druglist:
         stmt = stmt + 'WHEN protocol = "{0}" THEN CONCAT(mapto,",{1}") '.format(pat,drug)
     
-    cnxdict['sql'] = """UPDATE protocollist SET mapto = CASE
-            {0}
-        ELSE mapto
-    END;
+    cnxdict['sql'] = """
+        UPDATE protocollist SET mapto = CASE
+                {0}
+            ELSE mapto
+        END;
     """.format( stmt )
     
     dosqlexecute(cnxdict)
@@ -800,7 +800,7 @@ def skeleton(cnxdict):
 def set_add_on_agent(cnxdict=None):
     if cnxdict is None:
         cnxdict = getconnection('hma')  # get a connection to the hma section for an example
-    # allitem =    [['exclusionpattern',   'inclusionpattern',   'agent'                ]]
+    allitem =     ([['exclusionpattern',   'inclusionpattern',   'agent'                ]])
     allitem.extend([['SORA'            ,   'SORA'            ,   'sorafenib'            ]])
     allitem.extend([['GO'              ,   '[+].?GO'         ,   'gemtuzumab ozogamicin']])
     allitem.extend([['VP16'            ,   '[+].?VP16'       ,   'etoposide'            ]])
