@@ -42,7 +42,6 @@ def formatprotocollist(cnxdict):
             , treatmenttypes = '';
     """
     dosqlexecute(cnxdict)
-    standardizeprotocollist(cnxdict)
     return None
 
 
@@ -675,7 +674,7 @@ def set_arac(cnxdict):
     """
     cnxdict['sql'] = """
         UPDATE protocollist SET mapto = CASE 
-                    WHEN protocol RLIKE 'H\.{1}DAC' THEN CONCAT(mapto,',HiDAC')
+                    WHEN protocol RLIKE 'H.{1}DAC' THEN CONCAT(mapto,',HiDAC')
                     WHEN protocol RLIKE 'LDAC'      THEN CONCAT(mapto,',LDAC')
                     WHEN protocol RLIKE 'IDAC'      THEN CONCAT(mapto,',IDAC')
                     WHEN mapto    RLIKE '7[+]3'     THEN mapto
@@ -779,6 +778,8 @@ def set_single_agent_regimen(cnxdict=None):
             ELSE mapto
         END;
     """.format( stmt )
+
+    print cnxdict['sql']
     
     dosqlexecute(cnxdict)
     return None
