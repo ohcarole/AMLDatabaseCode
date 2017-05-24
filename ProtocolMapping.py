@@ -769,19 +769,19 @@ def set_single_agent_regimen(cnxdict=None):
     druglist.extend([[' ACT-D '           ,   'DACTINOMYCIN'         ,   'DACTINOMYCIN'                              ]])
     druglist.extend([[' IT MTX '          ,   'IT MTX'               ,   'IT MTX'                                    ]])
     
-    casestmt =''
+    stmt =''
     
     for pat,drug,desc in druglist:
-        casestmt = casestmt + 'WHEN protocol = "{0}" THEN CONCAT(mapto,",{1}") '.format(pat,drug)
+        stmt = stmt + 'WHEN protocol = "{0}" THEN CONCAT(mapto,",{1}") '.format(pat,drug)
     
-    sql = """UPDATE protocollist SET mapto = CASE 
+    cnxdict['sql'] = """UPDATE protocollist SET mapto = CASE
             {0}
         ELSE mapto
     END;
-    """.format(casestmt)
+    """.format( stmt )
     
-    return sql
-
+    dosqlexecute(cnxdict)
+    return None
 
 
 def skeleton(cnxdict):
