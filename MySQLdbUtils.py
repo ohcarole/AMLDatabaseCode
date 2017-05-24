@@ -56,7 +56,7 @@ def dosqlexecute(cnxdict):
                 sql.execute(cnxdict['sql'], cnxdict['db'])
                 cnxdict['db'].commit()
             except Exception:
-                print 'Failed to drop table in "drop_many":', cnxdict['sql']
+                print 'SQL Execute Failed:', cnxdict['sql']
             # print '-'*20
             # print cnxdict['sql']
     resetwarnings()
@@ -71,6 +71,6 @@ def dosqlread(cmd,db):
         # print df
     except Exception:
         df = ''
-        print 'Failed to return data frame with sql command:' + cmd
+        print 'Data Frame Failed:' + cmd
     print '-'*20
     return df
