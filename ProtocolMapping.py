@@ -985,16 +985,18 @@ def set_add_on_agent(cnxdict=None):
     druglist.extend([['[+].?RITUX'       ,   'RITUX'            ,   'rituximab'            ]])
     druglist.extend([['[+].?MITO'        ,   'MITO'             ,   'mitoxantrone'         ]])
 
-    stmt = ''
+    cnxdict['sql'] = ''
     for pat1, pat2, drug in druglist:
-        stmt = stmt + 'UPDATE protocollist SET druglist = CASE ' + chr(13) + chr(10)
-        stmt = stmt + '    WHEN CONCAT("+",protocol) RLIKE "{0}" THEN CASE '.format(pat1) + chr(13) + chr(10)
-        stmt = stmt + '        WHEN singleregimen NOT LIKE "{0}" AND multiregimen NOT LIKE "{0}" THEN CONCAT(druglist,",{1}") '.format(pat2, drug) + chr(13) + chr(10)
-        stmt = stmt + '        ELSE druglist ' + chr(13) + chr(10)
-        stmt = stmt + '        END' + chr(13) + chr(10)
-        stmt = stmt + '    END;' + chr(13) + chr(10)
+        cnxdict['sql'] = cnxdict['sql'] + """
+            UPDATE protocollist SET druglist = CASE
+                WHEN CONCAT('+',protocol) RLIKE '{0}' THEN CASE
+                    WHEN singleregimen NOT LIKE '{1}' AND multiregimen NOT LIKE '{1}' THEN CONCAT(druglist,',{2}')
+                    ELSE druglist
+                    END
+            END;
 
-    cnxdict['sql'] = stmt
+            """.format(pat1,pat2,drug)
+    print cnxdict['sql']
     dosqlexecute(cnxdict)
     return None
 
