@@ -1,5 +1,3 @@
-import sys
-reload(sys)
 import pypyodbc
 
 def connecttocaisisro():
@@ -10,9 +8,10 @@ def connecttocaisisro():
             'uid=fhcrc\cmshaw;pwd=password'
         )
         print ('Connected')
-    except:
+        con.close()
+    except Exception as ErrVal:
         print ('Connection Failed')
-    con.close()
+        print (ErrVal)
     return None
 
 connecttocaisisro()
