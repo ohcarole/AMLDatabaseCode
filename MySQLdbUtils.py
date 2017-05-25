@@ -10,7 +10,7 @@ reload(sys)
 import pypyodbc
 
 def connecttosqlserver():
-    con = pypyodbc.connect('Driver = (SQL Server);'
+    con = pypyodbc.connect('Driver = {SQL Server};'
         'Server=CONGO-H\H;'
         'Database=CaisisProdRO;'
         'uid=fhcrc\cmshaw;pwd=password'
@@ -70,7 +70,7 @@ def dosqlexecute(cnxdict):
             # print '-'*20
             # print cnxdict['sql']
     resetwarnings()
-    return None
+    return sql.rowcount
 
 
 def dosqlread(cmd,db):
