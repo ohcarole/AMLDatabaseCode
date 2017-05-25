@@ -760,7 +760,7 @@ def set_single_agent_mapping(cnxdict=None):
     
     for pat,drug,desc in druglist:
         stmt = stmt + """
-            WHEN protocol = '{0}' THEN CONCAT(mapto,',{1}')
+            WHEN protocol RLIKE '{0}' THEN CONCAT(mapto,',{1}')
             """.format(pat,drug)
     
     cnxdict['sql'] = """
