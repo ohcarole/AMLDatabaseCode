@@ -5,25 +5,16 @@ import MySQLdb as db
 import pandas as pd
 import sys
 from warnings import filterwarnings, resetwarnings
-filterwarnings('ignore', category = db.Warning)
+# filterwarnings('ignore', category = db.Warning)
 reload(sys)
 import pypyodbc
-import datetime
 
 def connecttosqlserver():
-    connectionstr = """
-        'Driver = (SQL Server);'
-        'Server=CONGO-H\H;'
-        'Database=CaisisProdRO;'
-        'uid=fhcrc\cmshaw;pwd=Aaron!23'
-    """
-    print connectionstr
     con = pypyodbc.connect('Driver = (SQL Server);'
         'Server=CONGO-H\H;'
         'Database=CaisisProdRO;'
-        'uid=fhcrc\cmshaw;pwd=Aaron!23'
+        'uid=fhcrc\cmshaw;pwd=password'
     )
-    print con
     con.close()
     return None
 
