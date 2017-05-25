@@ -7,6 +7,20 @@ import sys
 from warnings import filterwarnings, resetwarnings
 filterwarnings('ignore', category = db.Warning)
 reload(sys)
+import pypyodbc
+
+def connecttosqlserver():
+    connectionstr = """
+        'Driver = (SQL Server);'
+        'Server=CONGO-H\H;'
+        'Database=CaisisProdRO;'
+        'uid=fhcrc\cmshaw;pwd=1UglyBunnyHop%%%'
+    """
+    print connectionstr
+    con = pypyodbc.connect( connectionstr )
+    print con
+    con.close()
+    return None
 
 
 def buildfilepath(cnxdict, filename=''):
@@ -74,3 +88,5 @@ def dosqlread(cmd,db):
         print 'Data Frame Failed:' + cmd
     print '-'*20
     return df
+
+connecttosqlserver()

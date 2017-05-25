@@ -12,10 +12,13 @@ def standardizeprotocollist(cnxdict):
         UPDATE protocollist SET protocol = REPLACE(protocol,'DACTINOMYCIN','ACT-D');
         UPDATE protocollist SET protocol = REPLACE(protocol,'6TG','THIOGUANINE');
         UPDATE protocollist SET protocol = REPLACE(protocol,'DACOGEN','DECITABINE');
-        UPDATE protocollist SET protocol = REPLACE(protocol,' DAC ','DECITABINE');
+        UPDATE protocollist SET protocol = REPLACE(protocol,' DAC ',' DECITABINE ');
+        UPDATE protocollist SET protocol = REPLACE(protocol,' AND ',' + ');
+        UPDATE protocollist SET protocol = REPLACE(protocol,' WITH ',' + ');
         UPDATE protocollist SET protocol = REPLACE(protocol,'PRAVASTATIN, MITOXANTRONE AND ETOPOSIDE','PRAVA +MITO +ETOP');
         UPDATE protocollist SET protocol = '7+3 +SGN-CD33A' WHERE protocol = ' SGN + 7 + 3 ' OR protocol = ' SGN+7+3 ';
     """
+    dosqlexecute(cnxdict)
     return None
 
 
@@ -289,7 +292,7 @@ def set_mec_variant(cnxdict):
                     WHEN protocol RLIKE 'E.{0,1}SELECT.*[MEC]{3}' THEN CONCAT(mapto,',E-MEC')
                     WHEN protocol RLIKE '[MEC]{3}.*E.{0,1}SELECT' THEN CONCAT(mapto,',E-MEC')
                     WHEN protocol RLIKE '[^0-9]14070[^0-9]'       THEN CONCAT(mapto,',E-MEC')
-                    WHEN protocol RLIKE '[MEC]{3}'                THEN CONCAT(mapto,',MEC')
+                    WHEN protocol RLIKE '(MEC){1}'                THEN CONCAT(mapto,',MEC')
                 ELSE mapto
             END;
     """
@@ -740,7 +743,6 @@ def set_single_agent_mapping(cnxdict=None):
     druglist.extend([[' HU '              ,   'HU'                   ,   'HU'                                        ]])
     druglist.extend([[' CLADRABINE '      ,   'CLADRABINE'           ,   'CLADRABINE'                                ]])
     druglist.extend([[' CLOFARABINE '     ,   'CLOFARABINE'          ,   'CLOFARABINE'                               ]])
-    druglist.extend([[' DACOGEN '         ,   'DECI'                 ,   'DECI'                                      ]])
     druglist.extend([[' IDARUBICIN '      ,   'IDARUBICIN'           ,   'IDARUBICIN'                                ]])
     druglist.extend([[' NALARABINE '      ,   'NALARABINE'           ,   'NALARABINE'                                ]])
     druglist.extend([[' REVLAMID '        ,   'REVLAMID'             ,   'REVLAMID'                                  ]])
@@ -803,8 +805,6 @@ def set_deci(cnxdict):
     """
     cnxdict['sql'] = """
         UPDATE protocollist SET mapto = CASE
-                    WHEN protocol = ' DACOGEN '            THEN CONCAT(mapto,',DECI')
-                    WHEN protocol = ' DAC '                THEN CONCAT(mapto,',DECI')
                     WHEN protocol RLIKE ' DECI.{0,6}[ ]*'  THEN CONCAT(mapto,',DECI')
                     WHEN protocol RLIKE '^ DECI.{0,6}[ ]*' THEN CONCAT(mapto,',DECI')
                 ELSE mapto
@@ -834,9 +834,11 @@ def set_non_induction(cnxdict):
     """
     cnxdict['sql'] = """
         UPDATE protocollist SET noninduction =  CASE
-                WHEN mapto RLIKE 'PALLIATIVE[/]HOSPICE' THEN 'NO TREATMENT (PALLIATIVE/HOSPICE)'
                 WHEN mapto RLIKE 'NO TREATMENT'         THEN 'NO TREATMENT'
+                WHEN mapto RLIKE 'PALLIATIVE[/]HOSPICE' THEN 'NO TREATMENT (PALLIATIVE/HOSPICE)'
                 WHEN mapto RLIKE 'CONSULT'              THEN 'NO TREATMENT (CONSULT)'
+                WHEN mapto RLIKE 'OUTSIDE'              THEN 'NO TREATMENT (OUTSIDE)'
+                WHEN mapto RLIKE 'UNKNOWN'              THEN 'NO TREATMENT (UNKNOWN)'
                 WHEN mapto RLIKE 'XRT'                  THEN 'XRT'
                 ELSE noninduction
             END;
@@ -864,6 +866,7 @@ def set_multi_agent_regimen(cnxdict):
                 WHEN mapto RLIKE 'E[-]MEC'                   THEN 'E-MEC'
                 WHEN mapto RLIKE 'MEC'                       THEN 'MEC'
                 WHEN mapto RLIKE 'CLAM'                      THEN 'CLAM'
+                WHEN mapto RLIKE 'FLAM'                      THEN 'FLAM'
                 WHEN mapto RLIKE 'CLAG'                      THEN 'CLAG'
                 WHEN mapto RLIKE 'EPI PRIME [(]2588[)]'      THEN 'CLAG'
                 WHEN mapto RLIKE 'EPOCH'                     THEN 'EPOCH'
@@ -903,12 +906,27 @@ def set_single_agent_regimen(cnxdict):
     """
     cnxdict['sql'] = """
         UPDATE protocollist SET singleregimen =  CASE
+                WHEN protocol = ' ACT-D '               THEN 'ACT-D'
+                WHEN protocol = ' DACT '                THEN 'ACT-D'
+                WHEN protocol = ' DACTINOMYCIN '        THEN 'ACT-D'
+                WHEN protocol = ' ARA-C '               THEN 'ARA-C'
+                WHEN protocol = ' CYTARABINE ONLY '     THEN 'ARA-C'
+                WHEN protocol = ' ATRA '                THEN 'ATRA'
                 WHEN protocol = ' AZA '                 THEN 'AZA'
                 WHEN protocol = ' VIDAZA '              THEN 'AZA'
-                WHEN protocol = ' AZACITADINE '         THEN 'AZA'
-
+                WHEN protocol = ' AZACITIDINE '         THEN 'AZA'
+                WHEN protocol = ' DECITABIN '           THEN 'DECI'
+                WHEN protocol = ' DECITABINE '          THEN 'DECI'
+                WHEN protocol = ' FLX '                 THEN 'FLX925'
+                WHEN protocol = ' GO '                  THEN 'GO'
+                WHEN protocol = ' 7971 '                THEN 'GO'
                 WHEN protocol = ' HYPERCVAD '           THEN 'HYPERCVAD'
                 WHEN protocol = ' HCVAD '               THEN 'HYPERCVAD'
+                WHEN protocol = ' HU '                  THEN 'HYDROXYUREA'
+                WHEN protocol = ' HYDROXYUREA '         THEN 'HYDROXYUREA'
+                WHEN protocol = ' IT MTX '              THEN 'IT MTX'
+                WHEN protocol = ' IDARUBICIN '          THEN 'IDARUBICIN'
+                WHEN protocol = ' NALARABINE '          THEN 'NALARABINE'
                 WHEN mapto RLIKE 'ABT[-]199'            THEN 'ABT-199'
                 WHEN mapto RLIKE 'ADCT[-]301'           THEN 'ADCT-301'
                 WHEN mapto RLIKE 'AMG[-]232'            THEN 'AMG-232'
@@ -921,6 +939,8 @@ def set_single_agent_regimen(cnxdict):
                 WHEN mapto RLIKE 'PR104'                THEN 'PR104'
                 WHEN mapto RLIKE 'IGN[-]523'            THEN 'IGN-523'
                 WHEN mapto RLIKE '2534'                 THEN 'ON 01910.Na (2534)'
+                WHEN mapto RLIKE '2592'                 THEN 'HEDGEHOG'
+                WHEN mapto RLIKE 'HEDGE'                THEN 'HEDGEHOG'
                 ELSE singleregimen
             END;
     """
@@ -967,14 +987,18 @@ def skeleton(cnxdict):
     return None
 
 
-def skeleton(cnxdict):
+def set_more_groups(cnxdict):
     """
 
     :param cnxdict: data dictionary object
     :return: None
     """
     cnxdict['sql'] = """
-        <SQL>
+        UPDATE protocollist SET multiregimen = CASE
+            WHEN mapto    = ',DECI+ARA-C'            THEN 'DECI+ARA-C'
+            WHEN druglist = ',decitabine,cytarabine' THEN 'DECI+ARA-C'
+            ELSE multiregimen
+        END;
     """
     dosqlexecute(cnxdict)
     return None
@@ -989,6 +1013,7 @@ def set_add_on_agent(cnxdict=None):
     druglist.extend([['[+].?VP16'        ,    'VP16 '           ,   'etoposide'            ]])
     druglist.extend([['[+].?ETOP'        ,   'ETOP'             ,   'etoposide'            ]])
     druglist.extend([['[+].?VP'          ,   '[+].?VP'          ,   'vincristine'          ]])
+    druglist.extend([['[+].?VINC'        ,   'VINC'             ,   'vincristine'          ]])
     druglist.extend([['[+].?CLO'         ,   'CLO'              ,   'clofarabine'          ]])
     druglist.extend([['[+].?BORT'        ,   'BORT'             ,   'bortezomib'           ]])
     druglist.extend([['[+].?PRAVA'       ,   'PRAVA'            ,   'pravastatin'          ]])
@@ -996,14 +1021,42 @@ def set_add_on_agent(cnxdict=None):
     druglist.extend([['[+].?CEP'         ,   'CEP'              ,   'ibrutinib'            ]])
     druglist.extend([['[+].?IB(UR){2}'   ,   'IB(UR){2}'        ,   'lestaurtinib'         ]])
     druglist.extend([['[+].?RITUX'       ,   'RITUX'            ,   'rituximab'            ]])
+    druglist.extend([['[+].?IMATI'       ,   'IMATI'            ,   'imatinib'             ]])
     druglist.extend([['[+].?MITO'        ,   'MITO'             ,   'mitoxantrone'         ]])
+    druglist.extend([['[+].?TREM'        ,   'TREM'             ,   'tremetnib'            ]])
+    druglist.extend([['[+].?AZA'         ,   'AZA'              ,   'azacitidine'          ]])
+    druglist.extend([['[+].?ATRA'        ,   'ATRA'             ,   'tretinoin'            ]])
+    druglist.extend([['[+].?ATO'         ,   'ATO'              ,   'arsenic'              ]])
+    druglist.extend([['[+].?CREN'        ,   'CREN'             ,   'crenolanib'           ]])
+    druglist.extend([['[+].?CLAD'        ,   'CLAD'             ,   'cladrabine'           ]])
+    druglist.extend([['[+].?PLERI'       ,   'PLERI'            ,   'plerixafor'           ]])
+    druglist.extend([['[+].?DEXA'        ,   'DEXA'             ,   'dexamethasone'        ]])
+    druglist.extend([['[+].?ACTI'        ,   'ACTI'             ,   'dactinomycin'         ]])
+    druglist.extend([['[+].?ARA[-]C'     ,   'ARA[-]C'          ,   'cytarabine'           ]])
+    druglist.extend([['[+].?LIPO'        ,   'CYTAR'            ,   'cytarabine'           ]])
+    druglist.extend([['[+].?CYTAR'       ,   'CYTAR'            ,   'cytarabine'           ]])
+    druglist.extend([['[+].?LENAL'       ,   'LENAL'            ,   'lenalidomide'         ]])
+    druglist.extend([['[+].?PRAV'        ,   'PRAV'             ,   'pravastatin'          ]])
+    druglist.extend([['[+].?VORI'        ,   'VORINO'           ,   'vorinostat'           ]])
+    druglist.extend([['[+].?HU'          ,   'HU'               ,   'hydroxyurea'          ]])
+    druglist.extend([['[+].?HYDROX'      ,   'HU'               ,   'hydroxyurea'          ]])
+    druglist.extend([['[+].?SOR'         ,   'SORA'             ,   'sorafenib'            ]])
+    druglist.extend([['[+].?MTX'         ,   'MTX'              ,   'methotrexate'         ]])
+    druglist.extend([['[+].?BIRIN'       ,   'BIRIN'            ,   'birin'                ]])
+    druglist.extend([['[+].?IDA[^C]'     ,   'IDA'              ,   'idarubicin'           ]])
+    druglist.extend([['[+].?DNR'         ,   'DNR'              ,   'daunorubicin'         ]])
+    druglist.extend([['[+].?DOCE'        ,   'DOCE'             ,   'docetaxol'            ]])
+    druglist.extend([['[+].?DEXA'        ,   'DEXA'             ,   'dexamethasone'        ]])
 
     cnxdict['sql'] = ''
     for pat1, pat2, drug in druglist:
         cnxdict['sql'] = cnxdict['sql'] + """
             UPDATE protocollist SET druglist = CASE
                 WHEN CONCAT('+',protocol) RLIKE '{0}' THEN CASE
-                    WHEN singleregimen NOT LIKE '{1}' AND multiregimen NOT LIKE '{1}' THEN CONCAT(druglist,',{2}')
+                    WHEN singleregimen NOT LIKE '{1}'
+                            AND multiregimen NOT LIKE '{1}'
+                            AND druglist NOT RLIKE '{2}'
+                        THEN CONCAT(druglist,',{2}')
                     ELSE druglist
                     END
                 ELSE druglist
@@ -1031,4 +1084,7 @@ def build_all(cnxdict=None):
     set_single_agent_regimen(cnxdict)
 
     set_add_on_agent(cnxdict)
+
+    set_more_groups(cnxdict)
+
     return None
