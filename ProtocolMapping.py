@@ -898,18 +898,17 @@ def set_single_agent_regimen(cnxdict):
     :param cnxdict: data dictionary object
     :return: None
      TEMOZOLOMIDE
-
+                WHEN protocol = ' MEK '                 THEN 'MEK INHIBITOR'
+                WHEN protocol = ' MEK INHIBITOR '       THEN 'MEK INHIBITOR'
     """
     cnxdict['sql'] = """
         UPDATE protocollist SET singleregimen =  CASE
-                WHEN mapto = ' AZA '                    THEN 'AZA'
-                WHEN mapto = ' VIDAZA '                 THEN 'AZA'
-                WHEN mapto = ' AZACITADINE '            THEN 'AZA'
-                WHEN mapto = ' MEK '                    THEN 'MEK INHIBITOR'
-                WHEN mapto = ' MEK INHIBITOR '          THEN 'MEK INHIBITOR'
-                WHEN mapto = ' FLX '                    THEN 'FLX'
-                WHEN mapto = ' HYPERCVAD '              THEN 'HYPERCVAD'
-                WHEN mapto = ' HCVAD '                  THEN 'HYPERCVAD'
+                WHEN protocol = ' AZA '                 THEN 'AZA'
+                WHEN protocol = ' VIDAZA '              THEN 'AZA'
+                WHEN protocol = ' AZACITADINE '         THEN 'AZA'
+
+                WHEN protocol = ' HYPERCVAD '           THEN 'HYPERCVAD'
+                WHEN protocol = ' HCVAD '               THEN 'HYPERCVAD'
                 WHEN mapto RLIKE 'ABT[-]199'            THEN 'ABT-199'
                 WHEN mapto RLIKE 'ADCT[-]301'           THEN 'ADCT-301'
                 WHEN mapto RLIKE 'AMG[-]232'            THEN 'AMG-232'
