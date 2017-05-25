@@ -17,7 +17,12 @@ def connecttosqlserver():
         'uid=fhcrc\cmshaw;pwd=1UglyBunnyHop%%%'
     """
     print connectionstr
-    con = pypyodbc.connect( connectionstr )
+    con = pypyodbc.connect(
+        'Driver = (SQL Server);'
+        'Server=CONGO-H\H;'
+        'Database=CaisisProdRO;'
+        'uid=fhcrc\cmshaw;pwd=1UglyBunnyHop%%%'
+    )
     print con
     con.close()
     return None
