@@ -1,6 +1,6 @@
 import pypyodbc
 
-def connecttocaisisro():
+def connect_to_caisisro():
     try:
         con = pypyodbc.connect('Driver = (SQL Server);'
             'Server=CONGO-H\H;'
@@ -14,4 +14,4 @@ def connecttocaisisro():
         print (ErrVal)
     return None
 
-connecttocaisisro()
+connect_to_caisisro()

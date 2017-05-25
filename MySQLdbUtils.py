@@ -84,5 +84,3 @@ def dosqlread(cmd,db):
         print 'Data Frame Failed:' + cmd
     print '-'*20
     return df
-
-connecttosqlserver()
