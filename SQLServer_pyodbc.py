@@ -20,10 +20,17 @@ def connect_to_caisisprod(cnxdict):
     return con
 
 
-def test1_SQLServer_pyodbc():
+def test1_config_connect():
     print(pyodbc.drivers())
     cnxdict = read_db_config('caisisprod')
     con = connect_to_caisisprod(cnxdict)
     con.close()
 
-test1_SQLServer_pyodbc()
+
+def get_table():
+    sql = """
+        SELECT * FROM Patients
+    """
+
+
+test1_config_connect()
