@@ -33,3 +33,12 @@ def get_colnames(cnxdict, sch='', tbl=''):
     for row in cnxdict['crs']:
         collist = collist + ', `' + row[0] + '`'
     return collist
+
+
+def get_df_dict(df,currow):
+    currdict = {}
+    i = 0
+    for field in df.columns:
+        currdict[field.lower()]=currow[i]
+        i += 1
+    return currdict
