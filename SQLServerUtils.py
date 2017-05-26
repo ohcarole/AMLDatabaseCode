@@ -1,5 +1,4 @@
 import pypyodbc
-import pyodbc
 
 def connect_to_caisisro():
     try:
@@ -30,10 +29,3 @@ def connect_to_caisisro():
     return None
 
 connect_to_caisisro()
-
-def connect_to_caisisro():
-    try:
-        pass
-    except Exception as ErrVal:
-        print ('Connection Failed')
-        print (ErrVal)
