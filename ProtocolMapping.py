@@ -713,7 +713,7 @@ def set_amg(cnxdict):
 
 def set_single_agent_mapping(cnxdict=None):
     if cnxdict is None:
-        cnxdict = getconnection('hma')  
+        cnxdict = connect_to_mysql_db_prod('hma')
     set_sgn(cnxdict)
     set_mdx(cnxdict)
     set_bmn(cnxdict)
@@ -1006,7 +1006,7 @@ def set_more_groups(cnxdict):
 
 def set_add_on_agent(cnxdict=None):
     if cnxdict is None:
-        cnxdict = getconnection('hma')  # get a connection to the hma section for an example
+        cnxdict = connect_to_mysql_db_prod('hma')  # get a connection to the hma section for an example
     druglist =     ([['exclusionpattern1',   'exclusionpattern2',   'agent'                ]])
     druglist.extend([['[+].?SORA'        ,   'SORA'             ,   'sorafenib'            ]])
     druglist.extend([['[+].?GO'          ,   'GO'               ,   'gemtuzumab ozogamicin']])
@@ -1070,7 +1070,7 @@ def set_add_on_agent(cnxdict=None):
 
 def build_all(cnxdict=None):
     if cnxdict is None:
-        cnxdict = getconnection('hma')  # get a connection to the hma section for an example
+        cnxdict = connect_to_mysql_db_prod('hma')  # get a connection to the hma section for an example
     build_protocol_list(cnxdict)
     set_wildcard_flag(cnxdict)
     map_hct(cnxdict)

@@ -1,6 +1,6 @@
 from MySQLdbUtils import *
 
-cnxdict = getconnection('hma') # get a connection to the hma section for an example
+cnxdict = connect_to_mysql_db_prod('hma')  # get a connection to the hma section for an example
 
 def make_protocolmap(cnxdict):
     cnxdict['sql'] = """

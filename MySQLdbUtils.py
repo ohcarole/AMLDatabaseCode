@@ -19,32 +19,8 @@ def connecttosqlserver():
     return None
 
 
-def buildfilepath(cnxdict, filename=''):
-    if filename == '':
-        filename = cnxdict['out_filename']
-    return cnxdict['out_filedir'] + '\\' + filename + '.' + cnxdict['out_fileext']
-
-
-def getconnection(sect):
-    cnxdict = {
-        'desc': 'connection and cursor information'
-        , 'ini_section': sect
-        , 'ini_file': 'J:\Estey_AML\AML Programming\Python\sharedUtils\Config.ini'
-        , 'out_filedir': ''
-        , 'out_filename': ''
-        , 'out_fileext': ''
-        , 'out_filepath': '' # this is built from the other fields
-        , 'schema': ''
-        , 'tablelist': []
-        , 'currtable': ''
-        , 'myconfig': ''
-        , 'itemnum': 0
-        , 'cnx': {}
-        , 'crs': {}
-        , 'sql': ''
-        , 'df': {}
-        , 'multi': False
-    }
+def connect_to_mysql_db_prod(sect):
+    cnxdict = get_cnxdict(sect)
     cnxdict = read_db_config(cnxdict)
     cnxdict['cnx'] = db.connect(host=cnxdict['host'], user=cnxdict['user'],
                                      passwd=cnxdict['password'])
