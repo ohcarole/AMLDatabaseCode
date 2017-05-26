@@ -1,7 +1,7 @@
 # from mysql.connector import MySQLConnection, Error, errorcode
 import ConfigParser
 
-def read_db_config( cnxdict ):
+def read_db_config( sect, config='Config.ini' ):
     """ Read database configuration file and return a dictionary object
     :param ini_filename: name of the configuration file, defaults to config.ini
     :param ini_section: configuration section of interest, defaults to mysql
@@ -11,17 +11,18 @@ def read_db_config( cnxdict ):
     # create parser and read ini configuration file
     parser = ConfigParser.ConfigParser()
 
-    parser.read(cnxdict['ini_file'])
+    # parser.read(cnxdict['ini_file'])
+    parser.read(config)
 
     # get section, default to mysql
     db = {}
-    if parser.has_section(cnxdict['ini_section']):
-        items = parser.items(cnxdict['ini_section'])
+    if parser.has_section(sect):
+        items = parser.items(sect)
         for item in items:
             db[item[0]] = item[1]
     else:
         raise Exception('{0} not found '
-                        'in the {1} file'.format(cnxdict['ini_section'], cnxdict['ini_section']))
+                        'in the {1} file'.format(sect, config))
     return db
 
 
