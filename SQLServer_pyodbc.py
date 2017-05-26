@@ -2,9 +2,9 @@ import pyodbc
 
 
 def connect_to_caisisprod():
+    print('\nfirst connection attempt')
     try:
-        # con = pyodbc.connect(r'DRIVER={SQL Server};'
-        con = pyodbc.connect(r'DRIVER={ODBC Driver 13 for SQL Server};'
+        con = pyodbc.connect(r'DRIVER={SQL Server Native Client 11.0};'
            r'SERVER=CONGO-H\H;'
            r'DATABASE=CaisisProd;'
            r'UID=fhcrc/cmshaw;'
@@ -12,7 +12,18 @@ def connect_to_caisisprod():
            )
         con.close()
     except Exception as ErrVal:
-        print ('Connection Failed')
+        print ('\nConnection Failed')
+        print (ErrVal)
+    try:
+        print('\nsecond connection attempt')
+        con = pyodbc.connect(r'DRIVER={SQL Server};'
+                             r'SERVER=CONGO-H\H;'
+                             r'DATABASE=CaisisProd;'
+                             r'TRUSTED_CONNECTIONS=yes'
+                             )
+        con.close()
+    except Exception as ErrVal:
+        print ('\nConnection Failed')
         print (ErrVal)
 
 print(pyodbc.drivers())

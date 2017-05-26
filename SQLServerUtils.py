@@ -15,9 +15,10 @@ def connect_to_caisisro():
                                'Trusted_Connection=yes'
                                'uid=fhcrc\cmshaw;pwd=password'
                                )
-        con = pypyodbc.connect('DRIVER={ODBC Driver 13 for SQL Server};'
+        con = pypyodbc.connect('DRIVER={SQL Server};'
                                'SERVER=CONGO-H\H;'
                                'DATABASE=CaisisProd;'
+                               'Trusted_Connection=yes'
                                'UID=fhcrc\cmshaw;'
                                'PWD=Aaron!23'
                                )
