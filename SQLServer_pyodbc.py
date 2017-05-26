@@ -16,5 +16,5 @@ def connect_to_caisisprod():
 
 print(pyodbc.drivers())
 con = connect_to_caisisprod()
-cnxdict = get_cnxdict(sect)
+cnxdict = get_cnxdict('')
 con.close()

@@ -7,16 +7,6 @@ import sys
 from warnings import filterwarnings, resetwarnings
 # filterwarnings('ignore', category = db.Warning)
 reload(sys)
-import pypyodbc
-
-def connecttosqlserver():
-    con = pypyodbc.connect('Driver = {SQL Server};'
-        'Server=CONGO-H\H;'
-        'Database=CaisisProdRO;'
-        'uid=fhcrc\cmshaw;pwd=password'
-    )
-    con.close()
-    return None
 
 
 def connect_to_mysql_db_prod(sect):
