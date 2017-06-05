@@ -10,8 +10,8 @@ reload(sys)
 
 
 def connect_to_mysql_db_prod(sect):
-    cnxdict = get_cnxdict(sect)
-    cnxdict = read_db_config(cnxdict)
+    # cnxdict = get_cnxdict(sect)
+    cnxdict = read_db_config(sect)
     cnxdict['cnx'] = db.connect(host=cnxdict['host'], user=cnxdict['user'],
                                      passwd=cnxdict['password'])
     cnxdict['db'] =  db.connect(host=cnxdict['host'], user=cnxdict['user'],
@@ -42,8 +42,8 @@ def dosqlexecute(cnxdict, Single=False):
             try:
                 # cnxdict['crs'].execute(cnxdict['sql'])
                 sql.execute(cnxdict['sql'], cnxdict['db'])
-                cnxdict['db'].commit()
-                recent_rows_changed = cnxdict['crs'].rowcount
+                cnxdict['cnx'].commit()
+                # recent_rows_changed = cnxdict['crs'].rowcount
             except Exception:
                 print 'SQL Execute Failed:', cnxdict['sql']
             if recent_rows_changed > rows_changed:
@@ -58,10 +58,10 @@ def dosqlreplace(cnxdict,Single=False):
     rows_changed = 0
     if Single: # not using default delimiter
         delimit = '<end-of-code>'
-        if cnxdict['sql'].strip()[-1:] == ';': # last char is a semicolon
-            cnxdict['sql'] = cnxdict['sql'].strip()[:-1] + delimit
     else:
         delimit = ';'
+    if cnxdict['sql'].strip()[-1:] == ';':  # last char is a semicolon
+        cnxdict['sql'] = cnxdict['sql'].strip()[:-1] + delimit
     for cmd in cnxdict['sql'].split(delimit):
         recent_rows_changed = 0
         cnxdict['sql'] = removepad(cmd) + delimit
@@ -92,5 +92,4 @@ def dosqlread(cmd,db):
     except Exception:
         df = ''
         print 'Data Frame Failed:' + cmd
-    print '-'*20
     return df

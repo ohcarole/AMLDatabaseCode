@@ -21,7 +21,7 @@ def read_db_config( sect, config='Config.ini' ):
         , 'sql': ''
         , 'df': {}
         , 'multi': False
-          }
+    }
     if parser.has_section(sect):
         items = parser.items(sect)
         for item in items:
