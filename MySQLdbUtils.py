@@ -5,7 +5,7 @@ import MySQLdb as db
 import pandas as pd
 import sys
 from warnings import filterwarnings, resetwarnings
-# filterwarnings('ignore', category = db.Warning)
+filterwarnings('ignore', category = db.Warning)
 reload(sys)
 
 
@@ -83,13 +83,10 @@ def dosqlreplace(cnxdict,Single=False):
     return rows_changed
 
 
-def dosqlread(cmd,db):
+def dosqlread(cmd,con):
     filterwarnings('ignore', category=db.Warning)
     try:
-        df = pd.read_sql(cmd,db)
-        # print 'Data frame from sql command:' + cmd
-        # print df
+        df = pd.read_sql(cmd,con)
     except Exception:
         df = ''
-        print 'Data Frame Failed:' + cmd
     return df
