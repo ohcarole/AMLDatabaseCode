@@ -42,7 +42,8 @@ def dosqlexecute(cnxdict, Single=False):
             try:
                 # cnxdict['crs'].execute(cnxdict['sql'])
                 sql.execute(cnxdict['sql'], cnxdict['db'])
-                cnxdict['cnx'].commit()
+                if 'index' not in cnxdict['sql'].lower():
+                    cnxdict['cnx'].commit()
                 # recent_rows_changed = cnxdict['crs'].rowcount
             except Exception:
                 print 'SQL Execute Failed:', cnxdict['sql']
