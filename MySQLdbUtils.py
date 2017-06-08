@@ -16,6 +16,8 @@ def connect_to_mysql_db_prod(sect):
                                      passwd=cnxdict['password'])
     cnxdict['db'] =  db.connect(host=cnxdict['host'], user=cnxdict['user'],
                                      passwd=cnxdict['password'], db=cnxdict['schema'])
+    sql.execute("USE {}".format(cnxdict['schema']), cnxdict['db'])
+    sql.execute("USE {}".format(cnxdict['schema']), cnxdict['cnx'])
     cnxdict['crs'] = cnxdict['db'].cursor()
     cnxdict['out_filepath'] = buildfilepath(cnxdict)
     return cnxdict
@@ -40,11 +42,13 @@ def dosqlexecute(cnxdict, Single=False):
             cnxdict['sql'] = cnxdict['sql'].replace('<semicolon>', ';')
             cnxdict['sql'] = cnxdict['sql'].replace('<end-of-code>', ';')
             try:
-                # cnxdict['crs'].execute(cnxdict['sql'])
-                sql.execute(cnxdict['sql'], cnxdict['db'])
-                if 'index' not in cnxdict['sql'].lower():
+                if 'update' in cnxdict['sql'].lower():
+                    cnxdict['crs'].execute(cnxdict['sql'])
+                    recent_rows_changed = cnxdict['crs'].rowcount
+                else:
+                    sql.execute(cnxdict['sql'], cnxdict['db'])
+                if ' index ' not in cnxdict['sql'].lower():
                     cnxdict['cnx'].commit()
-                # recent_rows_changed = cnxdict['crs'].rowcount
             except Exception:
                 print 'SQL Execute Failed:', cnxdict['sql']
             if recent_rows_changed > rows_changed:
@@ -53,7 +57,7 @@ def dosqlexecute(cnxdict, Single=False):
     return rows_changed
 
 
-def dosqlreplace(cnxdict,Single=False):
+def dosqlupdate(cnxdict,Single=False):
     filterwarnings('ignore', category=db.Warning)
     reload(sys)
     rows_changed = 0

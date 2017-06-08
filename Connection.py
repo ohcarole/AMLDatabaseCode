@@ -36,26 +36,3 @@ def buildfilepath(cnxdict, filename=''):
     if filename == '':
         filename = cnxdict['out_filename']
     return cnxdict['out_filedir'] + '\\' + filename + '.' + cnxdict['out_fileext']
-
-
-def get_cnxdict(sect):
-    cnxdict = {
-        'desc': 'connection and cursor information'
-        , 'ini_section': sect
-        , 'ini_file': 'J:\Estey_AML\AML Programming\Python\sharedUtils\Config.ini'
-        , 'out_filedir': ''
-        , 'out_filename': ''
-        , 'out_fileext': ''
-        , 'out_filepath': ''  # this is built from the other fields
-        , 'schema': ''
-        , 'tablelist': []
-        , 'currtable': ''
-        , 'myconfig': ''
-        , 'itemnum': 0
-        , 'cnx': {}
-        , 'crs': {}
-        , 'sql': ''
-        , 'df': {}
-        , 'multi': False
-    }
-    return cnxdict

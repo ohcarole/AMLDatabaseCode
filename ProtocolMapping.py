@@ -1,5 +1,5 @@
+from __future__ import print_function
 from MySQLdbUtils import *
-
 
 def standardizeprotocollist(cnxdict):
     """
@@ -18,7 +18,7 @@ def standardizeprotocollist(cnxdict):
         UPDATE protocollist SET protocol = REPLACE(protocol,'PRAVASTATIN, MITOXANTRONE AND ETOPOSIDE','PRAVA +MITO +ETOP');
         UPDATE protocollist SET protocol = '7+3 +SGN-CD33A' WHERE protocol = ' SGN + 7 + 3 ' OR protocol = ' SGN+7+3 ';
     """
-    dosqlexecute(cnxdict)
+    dosqlupdate(cnxdict)
     return None
 
 
@@ -32,7 +32,9 @@ def formatprotocollist(cnxdict):
         ALTER TABLE protocollist
             CHANGE COLUMN pk pk INT NOT NULL ,
             ADD PRIMARY KEY (pk);
-
+    """
+    dosqlexecute(cnxdict)
+    cnxdict['sql'] = """
         UPDATE protocollist
             SET updateitem   = ''
             , mapto          = ''
@@ -44,7 +46,7 @@ def formatprotocollist(cnxdict):
             , intensity      = ''
             , treatmenttypes = '';
     """
-    dosqlexecute(cnxdict)
+    dosqlupdate(cnxdict)
     return None
 
 
@@ -94,7 +96,7 @@ def set_wildcard_flag(cnxdict):
         UPDATE protocollist SET wildcard = 'Yes' WHERE protocol RLIKE 'OFF';
         UPDATE protocollist SET protocol = REPLACE(protocol,'OFF','');
     """
-    dosqlexecute(cnxdict)
+    dosqlupdate(cnxdict)
     return None
 
 
@@ -134,7 +136,7 @@ def map_hct(cnxdict):
                 ELSE mapto
             END;
     """
-    dosqlexecute(cnxdict)
+    dosqlupdate(cnxdict)
     return None
 
 
@@ -157,7 +159,7 @@ def set_no_regimen(cnxdict):
                 ELSE mapto
             END;
     """
-    dosqlexecute(cnxdict)
+    dosqlupdate(cnxdict)
     return None
 
 
@@ -173,7 +175,7 @@ def set_radiation(cnxdict):
                 ELSE mapto
                 END;
     """
-    dosqlexecute(cnxdict)
+    dosqlupdate(cnxdict)
     return None
 
 
@@ -222,7 +224,7 @@ def set_7_plus_3(cnxdict):
                 ELSE mapto
             END;
     """
-    dosqlexecute(cnxdict)
+    dosqlupdate(cnxdict)
     return None
 
 
@@ -238,7 +240,7 @@ def set_5_plus_2(cnxdict):
             ELSE mapto
             END;
     """
-    dosqlexecute(cnxdict)
+    dosqlupdate(cnxdict)
     return None
 
 
@@ -270,7 +272,7 @@ def set_gclam_variant(cnxdict):
                 ELSE mapto
             END;
     """
-    dosqlexecute(cnxdict)
+    dosqlupdate(cnxdict)
     return None
 
 
@@ -296,7 +298,7 @@ def set_mec_variant(cnxdict):
                 ELSE mapto
             END;
     """
-    dosqlexecute(cnxdict)
+    dosqlupdate(cnxdict)
     return None
 
 
@@ -311,7 +313,7 @@ def set_mice(cnxdict):
                     WHEN protocol RLIKE 'MICE' THEN CONCAT(mapto,',MICE')
                 ELSE mapto
             END;    """
-    dosqlexecute(cnxdict)
+    dosqlupdate(cnxdict)
     return None
 
 
@@ -328,7 +330,7 @@ def set_flag(cnxdict):
                 ELSE mapto
             END;
     """
-    dosqlexecute(cnxdict)
+    dosqlupdate(cnxdict)
     return None
 
 
@@ -348,7 +350,7 @@ def set_atra_ato(cnxdict):
             ELSE mapto
         END;
     """
-    dosqlexecute(cnxdict)
+    dosqlupdate(cnxdict)
     return None
 
 
@@ -368,7 +370,7 @@ def set_iap_iavp(cnxdict):
                 ELSE mapto
             END;
     """
-    dosqlexecute(cnxdict)
+    dosqlupdate(cnxdict)
     return None
 
 
@@ -387,7 +389,7 @@ def set_hedgehog(cnxdict):
                 ELSE mapto
             END;
     """
-    dosqlexecute(cnxdict)
+    dosqlupdate(cnxdict)
     return None
 
 
@@ -404,7 +406,7 @@ def set_epi_prime_2588(cnxdict):
                 ELSE mapto
             END;
     """
-    dosqlexecute(cnxdict)
+    dosqlupdate(cnxdict)
     return None
 
 
@@ -420,7 +422,7 @@ def set_epoch(cnxdict):
                 ELSE mapto
             END;
     """
-    dosqlexecute(cnxdict)
+    dosqlupdate(cnxdict)
     return None
 
 
@@ -439,7 +441,7 @@ def set_abt_199(cnxdict):
                 ELSE mapto
             END;
     """
-    dosqlexecute(cnxdict)
+    dosqlupdate(cnxdict)
     return None
 
 
@@ -458,7 +460,7 @@ def set_tosedostat(cnxdict):
                 ELSE mapto
             END;
     """
-    dosqlexecute(cnxdict)
+    dosqlupdate(cnxdict)
     return None
 
 
@@ -480,7 +482,7 @@ def set_vorino_2288_2200(cnxdict):
                 ELSE mapto
             END;
     """
-    dosqlexecute(cnxdict)
+    dosqlupdate(cnxdict)
     return None
 
 
@@ -498,7 +500,7 @@ def set_cpx_351(cnxdict):
             ELSE mapto
         END;
     """
-    dosqlexecute(cnxdict)
+    dosqlupdate(cnxdict)
     return None
 
 
@@ -515,7 +517,7 @@ def set_bend_ida(cnxdict):
             ELSE mapto
         END;
     """
-    dosqlexecute(cnxdict)
+    dosqlupdate(cnxdict)
     return None
 
 
@@ -532,7 +534,7 @@ def set_deci_arac(cnxdict):
                 ELSE mapto
             END;
     """
-    dosqlexecute(cnxdict)
+    dosqlupdate(cnxdict)
     return None
 
 
@@ -549,7 +551,7 @@ def set_clof_ldac(cnxdict):
                 ELSE mapto
             END;
     """
-    dosqlexecute(cnxdict)
+    dosqlupdate(cnxdict)
     return None
 
 
@@ -565,7 +567,7 @@ def set_mito_vp16(cnxdict):
                 ELSE mapto
             END;
     """
-    dosqlexecute(cnxdict)
+    dosqlupdate(cnxdict)
     return None
 
 
@@ -581,7 +583,7 @@ def set_csa_prava_mito_vp16_2409(cnxdict):
                 ELSE mapto
             END;
     """
-    dosqlexecute(cnxdict)
+    dosqlupdate(cnxdict)
     return None
 
 
@@ -597,7 +599,7 @@ def set_mvp16(cnxdict):
                 ELSE mapto
             END;
     """
-    dosqlexecute(cnxdict)
+    dosqlupdate(cnxdict)
     return None
 
 
@@ -613,7 +615,7 @@ def set_mv_csa_prav(cnxdict):
                 ELSE mapto
             END;
     """
-    dosqlexecute(cnxdict)
+    dosqlupdate(cnxdict)
     return None
 
 
@@ -632,7 +634,7 @@ def set_sgn(cnxdict):
                 ELSE mapto
             END;
     """
-    dosqlexecute(cnxdict)
+    dosqlupdate(cnxdict)
     return None
 
 
@@ -649,7 +651,7 @@ def set_mdx(cnxdict):
                 ELSE mapto
             END;
     """
-    dosqlexecute(cnxdict)
+    dosqlupdate(cnxdict)
     return None
 
 
@@ -666,7 +668,7 @@ def set_bmn(cnxdict):
                 ELSE mapto
             END;
     """
-    dosqlexecute(cnxdict)
+    dosqlupdate(cnxdict)
     return None
 
 
@@ -678,7 +680,7 @@ def set_arac(cnxdict):
     """
     cnxdict['sql'] = """
         UPDATE protocollist SET mapto = CASE 
-                    WHEN protocol RLIKE 'H.{1}DAC' THEN CONCAT(mapto,',HiDAC')
+                    WHEN protocol RLIKE 'H.{1}DAC'  THEN CONCAT(mapto,',HiDAC')
                     WHEN protocol RLIKE 'LDAC'      THEN CONCAT(mapto,',LDAC')
                     WHEN protocol RLIKE 'IDAC'      THEN CONCAT(mapto,',IDAC')
                     WHEN protocol RLIKE 'ARA.{1}C'  THEN CONCAT(mapto,',ARA-C')
@@ -686,7 +688,7 @@ def set_arac(cnxdict):
                 ELSE mapto
         END;
     """
-    dosqlexecute(cnxdict)
+    dosqlupdate(cnxdict)
     return None
 
 
@@ -707,7 +709,7 @@ def set_amg(cnxdict):
                 ELSE mapto
             END;
     """
-    dosqlexecute(cnxdict)
+    dosqlupdate(cnxdict)
     return None
 
 
@@ -771,8 +773,8 @@ def set_single_agent_mapping(cnxdict=None):
             ELSE mapto
         END;
     """.format( stmt )
-    print cnxdict['sql']
-    dosqlexecute(cnxdict)
+    print (cnxdict['sql'])
+    dosqlupdate(cnxdict)
 
     return None
 
@@ -793,7 +795,7 @@ def set_aza(cnxdict):
             END
             WHERE mapto='';
     """
-    dosqlexecute(cnxdict)
+    dosqlupdate(cnxdict)
     return None
 
 
@@ -811,7 +813,7 @@ def set_deci(cnxdict):
             END
             WHERE mapto='';
     """
-    dosqlexecute(cnxdict)
+    dosqlupdate(cnxdict)
     return None
 
 
@@ -843,7 +845,7 @@ def set_non_induction(cnxdict):
                 ELSE noninduction
             END;
     """
-    dosqlexecute(cnxdict)
+    dosqlupdate(cnxdict)
     return None
 
 
@@ -891,7 +893,7 @@ def set_multi_agent_regimen(cnxdict):
                 ELSE multiregimen
             END;
     """
-    dosqlexecute(cnxdict)
+    dosqlupdate(cnxdict)
     return None
 
 
@@ -944,7 +946,7 @@ def set_single_agent_regimen(cnxdict):
                 ELSE singleregimen
             END;
     """
-    dosqlexecute(cnxdict)
+    dosqlupdate(cnxdict)
     return None
 
 
@@ -1000,7 +1002,7 @@ def set_more_groups(cnxdict):
             ELSE multiregimen
         END;
     """
-    dosqlexecute(cnxdict)
+    dosqlupdate(cnxdict)
     return None
 
 
@@ -1063,8 +1065,8 @@ def set_add_on_agent(cnxdict=None):
             END;
 
             """.format(pat1,pat2,drug)
-    print cnxdict['sql']
-    dosqlexecute(cnxdict)
+    print (cnxdict['sql'])
+    dosqlupdate(cnxdict)
     return None
 
 
@@ -1088,3 +1090,34 @@ def build_all(cnxdict=None):
     set_more_groups(cnxdict)
 
     return None
+
+
+# build_all()
+cnxdict = connect_to_mysql_db_prod('hma')  # get a connection to the hma section for an example
+writer = pd.ExcelWriter(cnxdict['out_filepath'])
+df = pd.read_sql("""
+         SELECT * FROM hma_201703.protocollist;
+     """,cnxdict['cnx'])
+
+print('\nFirst all fields in data set')
+print(df.info())
+
+r = df.dropna().groupby('singleregimen').size()
+print('\nSecond: Number of unique single regimen protocols mapped to single regimen group\n',r)
+
+r = df.groupby('singleregimen')['totaluse'].sum()
+print('\nThird: Number of patient arrival dates mapped to this group\n',r)
+
+sng_counts=df['singleregimen'].value_counts()
+r = sng_counts[:5]
+print('\nFourth:  First five singleregimen protocols\n',r)
+
+r = df.groupby('multiregimen').size()
+print('\nFifth: Number of unique multi regimen protocols mapped to this group\n',r)
+
+r = df.groupby('multiregimen')['totaluse'].sum()
+print('\nSixth: Number of patient arrival dates mapped to multi regimen groups\n',r)
+
+# sng=pd.DataFrame(df.groupby(['singleregimen']))
+# tbl = pd.crosstab([df.singleregimen,df.multiregimen],df.ArrivalYear, margins=True, dropna = False)
+# sng.to_excel(writer, sheet_name='single regimen')

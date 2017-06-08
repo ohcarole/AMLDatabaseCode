@@ -5,7 +5,7 @@ import pandas as pd
 Crosstab and excel writer examples
 """
 
-cnxdict = connect_to_mysql_db_prod('hma')  # get a connection to the hma section for an example
+ # get a connection to the hma section for an example
 
 writer = pd.ExcelWriter(cnxdict['out_filepath'])
 print cnxdict['out_filepath']
