@@ -1092,32 +1092,62 @@ def build_all(cnxdict=None):
     return None
 
 
+def multiregimen(writer):
+    df = pd.read_sql("""
+            SELECT multiregimen
+                , count(totaluse) as protocol_variations
+                , sum(totaluse) as protcool_arrivals
+            FROM hma_201703.protocollist
+            WHERE multiregimen > ''
+            GROUP BY multiregimen;
+         """, cnxdict['cnx'])
+    df.to_excel(writer, sheet_name='multi regimen', index=False)
+
+
+def singleregimen(writer):
+    df = pd.read_sql("""
+            SELECT singleregimen
+                , count(totaluse) as protocol_variations
+                , sum(totaluse) as protcool_arrivals
+            FROM hma_201703.protocollist
+            WHERE singleregimen > '' and multiregimen = ''
+            GROUP BY singleregimen;
+         """, cnxdict['cnx'])
+    df.to_excel(writer, sheet_name='single regimen', index=False)
+
+
+def detail(writer):
+    df = pd.read_sql("""
+            SELECT originalprotocol
+                , protocol
+                , mapto
+                , noninduction
+                , singleregimen
+                , multiregimen
+                , druglist
+                , wildcard
+                , intensity
+                , totaluse as `arrivals for this variation`
+                FROM hma_201703.protocollist;
+         """, cnxdict['cnx'])
+    df.to_excel(writer, sheet_name='regimen variations', index=False)
+
+
 # build_all()
 cnxdict = connect_to_mysql_db_prod('hma')  # get a connection to the hma section for an example
+print(cnxdict['out_filepath'])
 writer = pd.ExcelWriter(cnxdict['out_filepath'])
-df = pd.read_sql("""
-         SELECT * FROM hma_201703.protocollist;
-     """,cnxdict['cnx'])
+multiregimen(writer)
+singleregimen(writer)
+detail(writer)
+writer.save()
 
-print('\nFirst all fields in data set')
-print(df.info())
-
-r = df.dropna().groupby('singleregimen').size()
-print('\nSecond: Number of unique single regimen protocols mapped to single regimen group\n',r)
-
-r = df.groupby('singleregimen')['totaluse'].sum()
-print('\nThird: Number of patient arrival dates mapped to this group\n',r)
-
-sng_counts=df['singleregimen'].value_counts()
-r = sng_counts[:5]
-print('\nFourth:  First five singleregimen protocols\n',r)
-
-r = df.groupby('multiregimen').size()
-print('\nFifth: Number of unique multi regimen protocols mapped to this group\n',r)
-
-r = df.groupby('multiregimen')['totaluse'].sum()
-print('\nSixth: Number of patient arrival dates mapped to multi regimen groups\n',r)
-
-# sng=pd.DataFrame(df.groupby(['singleregimen']))
-# tbl = pd.crosstab([df.singleregimen,df.multiregimen],df.ArrivalYear, margins=True, dropna = False)
-# sng.to_excel(writer, sheet_name='single regimen')
+# df = pd.read_sql("""
+#         SELECT multiregimen
+#             , totaluse as protocol_variations
+#             , sum(totaluse) as protcool_arrivals
+#         FROM hma_201703.protocollist
+#         WHERE multiregimen > ''
+#         GROUP BY multiregimen;
+#      """, cnxdict['cnx'])
+# df.to_excel(writer, sheet_name='multi regimen', index=False)
