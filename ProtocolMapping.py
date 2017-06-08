@@ -1092,7 +1092,7 @@ def build_all(cnxdict=None):
     return None
 
 
-def multiregimen(writer):
+def multiregimen(writer,cnxdict):
     df = pd.read_sql("""
             SELECT multiregimen
                 , count(totaluse) as protocol_variations
@@ -1104,7 +1104,7 @@ def multiregimen(writer):
     df.to_excel(writer, sheet_name='multi regimen', index=False)
 
 
-def singleregimen(writer):
+def singleregimen(writer,cnxdict):
     df = pd.read_sql("""
             SELECT singleregimen
                 , count(totaluse) as protocol_variations
@@ -1116,7 +1116,7 @@ def singleregimen(writer):
     df.to_excel(writer, sheet_name='single regimen', index=False)
 
 
-def detail(writer):
+def detail(writer,cnxdict):
     df = pd.read_sql("""
             SELECT originalprotocol
                 , protocol
@@ -1133,21 +1133,15 @@ def detail(writer):
     df.to_excel(writer, sheet_name='regimen variations', index=False)
 
 
-# build_all()
-cnxdict = connect_to_mysql_db_prod('hma')  # get a connection to the hma section for an example
-print(cnxdict['out_filepath'])
-writer = pd.ExcelWriter(cnxdict['out_filepath'])
-multiregimen(writer)
-singleregimen(writer)
-detail(writer)
-writer.save()
 
-# df = pd.read_sql("""
-#         SELECT multiregimen
-#             , totaluse as protocol_variations
-#             , sum(totaluse) as protcool_arrivals
-#         FROM hma_201703.protocollist
-#         WHERE multiregimen > ''
-#         GROUP BY multiregimen;
-#      """, cnxdict['cnx'])
-# df.to_excel(writer, sheet_name='multi regimen', index=False)
+def createsummary():
+    cnxdict = connect_to_mysql_db_prod('hma')  # get a connection to the hma section for an example
+    print(cnxdict['out_filepath'])
+    writer = pd.ExcelWriter(cnxdict['out_filepath'], engine='xlsxwriter')
+    multiregimen(writer,cnxdict)
+    singleregimen(writer,cnxdict)
+    detail(writer,cnxdict)
+    writer.close()
+
+# build_all()
+createsummary()
