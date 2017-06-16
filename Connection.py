@@ -1,7 +1,7 @@
 # from mysql.connector import MySQLConnection, Error, errorcode
 import ConfigParser
 
-def read_db_config( sect, config='Config.ini' ):
+def read_db_config( sect, config='J:\Estey_AML\AML Programming\Python\sharedUtils\Config.ini' ):
     """ Read database configuration file and return a dictionary object
     :param ini_filename: name of the configuration file, defaults to config.ini
     :param ini_section: configuration section of interest, defaults to mysql

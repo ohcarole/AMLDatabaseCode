@@ -42,7 +42,8 @@ def dosqlexecute(cnxdict, Single=False):
             cnxdict['sql'] = cnxdict['sql'].replace('<semicolon>', ';')
             cnxdict['sql'] = cnxdict['sql'].replace('<end-of-code>', ';')
             try:
-                if 'update' in cnxdict['sql'].lower():
+                if 'update' in cnxdict['sql'].lower()\
+                    or 'insert' in cnxdict['sql'].lower():
                     cnxdict['crs'].execute(cnxdict['sql'])
                     recent_rows_changed = cnxdict['crs'].rowcount
                 else:
@@ -95,3 +96,19 @@ def dosqlread(cmd,con):
     except Exception:
         df = ''
     return df
+
+
+def sqlfileexecute(fullpathfilename, cnxdict=None, sect=None):
+    """
+    Takes a path and filename creates a cursor if needed and executes the sql file code
+    :param fullpathfilename:
+    :param cnxdict: MySQLdb Connection
+    :param sect: Section in Config.ini
+    :return: Pass back results of dosqlexecute()
+    """
+    if sect is None:
+        sect = 'temp'
+    if cnxdict is None:
+        cnxdict = connect_to_mysql_db_prod(sect)
+    cnxdict['sql'] = open(fullpathfilename).read()
+    return dosqlexecute(cnxdict)

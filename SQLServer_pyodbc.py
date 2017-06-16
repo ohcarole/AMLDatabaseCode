@@ -33,14 +33,24 @@ def connect_to_caisisprod(cnxdict):
 	return con
 
 
-def create_temporary_caisis_table(cmd, cnxdict):
-	cnxdict.autocommit = True
+# def create_temporary_caisis_table_(cmd, cnxdict):
+# 	cnxdict.autocommit = True
+# 	crs = cnxdict.cursor()
+# 	try:
+# 		crs.execute(cmd)
+# 		print('Success creating temporary table')
+# 	except:
+# 		print('Error creating temporary table')
+
+
+def create_temporary_caisis_table(cmd,cnxdict):
 	crs = cnxdict.cursor()
 	try:
 		crs.execute(cmd)
-		print('Success creating temporary table')
+		print(cmd)
 	except:
-		print('Error creating temporary table')
+		print('Error\n'+cmd)
+	crs.close()
 
 
 def test1_config_connect():
