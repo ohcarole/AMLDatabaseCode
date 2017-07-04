@@ -3,6 +3,7 @@ import pandas.io.sql as sql
 from Connection import *
 import MySQLdb as db
 import pandas as pd
+import numpy as np
 import sys
 from warnings import filterwarnings, resetwarnings
 filterwarnings('ignore', category = db.Warning)
@@ -42,13 +43,26 @@ def dosqlexecute(cnxdict, Single=False):
             cnxdict['sql'] = cnxdict['sql'].replace('<semicolon>', ';')
             cnxdict['sql'] = cnxdict['sql'].replace('<end-of-code>', ';')
             try:
-                if 'update' in cnxdict['sql'].lower()\
-                    or 'insert' in cnxdict['sql'].lower():
+                if 'insert' in cnxdict['sql'].lower():
                     cnxdict['crs'].execute(cnxdict['sql'])
+                    cnxdict['db'].commit()
                     recent_rows_changed = cnxdict['crs'].rowcount
+                elif 'update' in cnxdict['sql'].lower():
+                    cnxdict['crs'].execute(cnxdict['sql'])
+                    cnxdict['db'].commit()
+                    recent_rows_changed = cnxdict['crs'].rowcount
+                elif 'create' in cnxdict['sql'].lower():
+                    sql.execute(cnxdict['sql'], cnxdict['db'])
+                    cnxdict['cnx'].commit()
+                    """ Should be able to get number of rows from the INFORMATION_SCHEMA table as in this example:
+                        SELECT    TABLE_ROWS
+                            FROM  INFORMATION_SCHEMA.PARTITIONS
+                            WHERE TABLE_SCHEMA = 'fungal'
+                            AND   TABLE_NAME   = 'patientlist';
+                        recent_rows_changed = cnxdict['crs'].rowcount
+                    """
                 else:
                     sql.execute(cnxdict['sql'], cnxdict['db'])
-                if ' index ' not in cnxdict['sql'].lower():
                     cnxdict['cnx'].commit()
             except Exception:
                 print 'SQL Execute Failed:', cnxdict['sql']
@@ -96,6 +110,11 @@ def dosqlread(cmd,con):
     except Exception:
         df = ''
     return df
+
+
+def addexceltable(sqlstm, writerobj, newsheet, con ):
+    df = dosqlread(sqlstm, con)
+    df.to_excel(writerobj, sheet_name=newsheet, index=False)
 
 
 def sqlfileexecute(fullpathfilename, cnxdict=None, sect=None):

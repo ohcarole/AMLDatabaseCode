@@ -23,11 +23,11 @@ def connect_to_caisisprod(cnxdict):
 	)
 
 	try:
-		print ('About to Connect')
+		print ('-- About to Connect')
 		con = pyodbc.connect(constring)
-		print ('Connected to {}'.format(cnxdict['database']))
+		print ('-- Connected to {}'.format(cnxdict['database']))
 	except Exception as ErrVal:
-		print ('Connection Failed')
+		print ('-- Connection Failed')
 		print (ErrVal)
 	# con.autocommit = False
 	return con
@@ -85,7 +85,7 @@ def test2_get_table():
 		df = pd.read_sql(tempsql,cnxdict)
 		print(df)
 	except:
-		print('Failed:'+'test2_get_table()')
+		print('-- Failed:'+'test2_get_table()')
 
 
 def test3_temporary_table():
@@ -114,9 +114,9 @@ def test3_temporary_table():
 		"""
 		try:
 			crs.execute(cmd)
-			print('Success creating temporary table')
+			print('-- Success creating temporary table')
 		except pyodbc.ProgrammingError:
-			print('Error creating temporary table')
+			print('-- Error creating temporary table')
 		print("---")
 		for row in crs.fetchall():
 			for index, field in enumerate(row):
@@ -126,7 +126,7 @@ def test3_temporary_table():
 		del crs
 		crs = con.cursor()
 	except:
-		print('Failed:' + 'test3_temporary_table()')
+		print('-- Failed:' + 'test3_temporary_table()')
 
 
 def test4_twoqueries():
