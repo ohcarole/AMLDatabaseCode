@@ -6,9 +6,6 @@ from email.mime.text import MIMEText
 from email import Encoders
 import os
 
-# account_dict = {'user': 'carolemarieshawjunk@gmail.com', 'pwd': '<a secret>'}
-# account_dict = {'user': 'cmshaw@fredhutch.org', 'pwd': '<a secret>'}
-# account_dict = {'user': 'cmshaw@fhcrc.org', 'pwd': '<a secret>'}
 account_dict = {'user': 'cmshaw@fhcrc.org', 'pwd': '<a secret>'}
 mail_user = account_dict['user']
 mail_pwd  = account_dict['pwd']

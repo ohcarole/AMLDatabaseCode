@@ -35,4 +35,6 @@ def read_db_config( sect, config='J:\Estey_AML\AML Programming\Python\sharedUtil
 def buildfilepath(cnxdict, filename=''):
     if filename == '':
         filename = cnxdict['out_filename']
-    return cnxdict['out_filedir'] + '\\' + filename + '.' + cnxdict['out_fileext']
+    outputfile = cnxdict['out_filedir'] + '\\' + filename + '.' + cnxdict['out_fileext']
+    print(outputfile)
+    return outputfile
