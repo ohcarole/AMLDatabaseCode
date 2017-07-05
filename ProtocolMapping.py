@@ -8,15 +8,15 @@ def standardizeprotocollist(cnxdict):
     :return: None
     """
     cnxdict['sql'] = """
-        UPDATE protocollist SET protocol = REPLACE(protocol,'ACTINOMYCIN','DACTINOMYCIN');
-        UPDATE protocollist SET protocol = REPLACE(protocol,'DACTINOMYCIN','ACT-D');
-        UPDATE protocollist SET protocol = REPLACE(protocol,'6TG','THIOGUANINE');
-        UPDATE protocollist SET protocol = REPLACE(protocol,'DACOGEN','DECITABINE');
-        UPDATE protocollist SET protocol = REPLACE(protocol,' DAC ',' DECITABINE ');
-        UPDATE protocollist SET protocol = REPLACE(protocol,' AND ',' + ');
-        UPDATE protocollist SET protocol = REPLACE(protocol,' WITH ',' + ');
-        UPDATE protocollist SET protocol = REPLACE(protocol,'PRAVASTATIN, MITOXANTRONE AND ETOPOSIDE','PRAVA +MITO +ETOP');
-        UPDATE protocollist SET protocol = '7+3 +SGN-CD33A' WHERE protocol = ' SGN + 7 + 3 ' OR protocol = ' SGN+7+3 ';
+        UPDATE temp.protocollist SET protocol = REPLACE(protocol,'ACTINOMYCIN','DACTINOMYCIN');
+        UPDATE temp.protocollist SET protocol = REPLACE(protocol,'DACTINOMYCIN','ACT-D');
+        UPDATE temp.protocollist SET protocol = REPLACE(protocol,'6TG','THIOGUANINE');
+        UPDATE temp.protocollist SET protocol = REPLACE(protocol,'DACOGEN','DECITABINE');
+        UPDATE temp.protocollist SET protocol = REPLACE(protocol,' DAC ',' DECITABINE ');
+        UPDATE temp.protocollist SET protocol = REPLACE(protocol,' AND ',' + ');
+        UPDATE temp.protocollist SET protocol = REPLACE(protocol,' WITH ',' + ');
+        UPDATE temp.protocollist SET protocol = REPLACE(protocol,'PRAVASTATIN, MITOXANTRONE AND ETOPOSIDE','PRAVA +MITO +ETOP');
+        UPDATE temp.protocollist SET protocol = '7+3 +SGN-CD33A' WHERE protocol = ' SGN + 7 + 3 ' OR protocol = ' SGN+7+3 ';
     """
     dosqlupdate(cnxdict)
     return None
@@ -29,13 +29,13 @@ def formatprotocollist(cnxdict):
     :return: None
     """
     cnxdict['sql'] = """
-        ALTER TABLE protocollist
+        ALTER TABLE temp.protocollist
             CHANGE COLUMN pk pk INT NOT NULL ,
             ADD PRIMARY KEY (pk);
     """
     dosqlexecute(cnxdict)
     cnxdict['sql'] = """
-        UPDATE protocollist
+        UPDATE temp.protocollist
             SET updateitem   = ''
             , mapto          = ''
             , noninduction   = ''
@@ -57,11 +57,11 @@ def build_protocol_list(cnxdict):
     :return: None
     """
     cnxdict['sql'] = """
-        DROP TABLE IF EXISTS protocollist;
+        DROP TABLE IF EXISTS temp.protocollist;
 
         SET @rownum = 0;
 
-        CREATE TABLE protocollist
+        CREATE TABLE temp.protocollist
             SELECT @rownum := @rownum+1             AS pk
                 , SPACE(40)                         AS UpdateItem
                 , protocol                          AS OriginalProtocol
@@ -93,8 +93,8 @@ def set_wildcard_flag(cnxdict):
     :return: None
     """
     cnxdict['sql'] = """
-        UPDATE protocollist SET wildcard = 'Yes' WHERE protocol RLIKE 'OFF';
-        UPDATE protocollist SET protocol = REPLACE(protocol,'OFF','');
+        UPDATE temp.protocollist SET wildcard = 'Yes' WHERE protocol RLIKE 'OFF';
+        UPDATE temp.protocollist SET protocol = REPLACE(protocol,'OFF','');
     """
     dosqlupdate(cnxdict)
     return None
@@ -107,7 +107,7 @@ def map_hct(cnxdict):
     :return: None
     """
     cnxdict['sql'] = """
-        UPDATE protocollist SET mapto = CASE
+        UPDATE temp.protocollist SET mapto = CASE
                 WHEN protocol RLIKE 'HCT' THEN CONCAT(mapto,',HCT')
                 WHEN protocol RLIKE 'SCT' THEN CONCAT(mapto,',HCT')
                 WHEN protocol RLIKE '[^0-9]131[^0-9]' THEN CONCAT(mapto,',HCT')
@@ -147,7 +147,7 @@ def set_no_regimen(cnxdict):
     :return: None
     """
     cnxdict['sql'] = """
-        UPDATE protocollist SET mapto = CASE
+        UPDATE temp.protocollist SET mapto = CASE
                     WHEN protocol RLIKE 'PALL'         THEN CONCAT(mapto,',PALLIATIVE/HOSPICE')
                     WHEN protocol RLIKE 'HOSP'         THEN CONCAT(mapto,',PALLIATIVE/HOSPICE')
                     WHEN protocol RLIKE 'CONS'         THEN CONCAT(mapto,',CONSULT')
@@ -170,7 +170,7 @@ def set_radiation(cnxdict):
     :return: None
     """
     cnxdict['sql'] = """
-        UPDATE protocollist SET mapto = CASE
+        UPDATE temp.protocollist SET mapto = CASE
                     WHEN protocol RLIKE 'XRT' THEN CONCAT(mapto,',XRT')
                 ELSE mapto
                 END;
@@ -213,7 +213,7 @@ def set_7_plus_3(cnxdict):
     :return: None
     """
     cnxdict['sql'] = """
-        UPDATE protocollist SET mapto = CASE
+        UPDATE temp.protocollist SET mapto = CASE
                 WHEN protocol RLIKE '3.*[+].*7|7.*[+].*3' THEN CONCAT(mapto,',7+3')
                 WHEN protocol RLIKE 'IA[+]{1}|IA[ ]{1}'   THEN CONCAT(mapto,',7+3')
                 WHEN protocol RLIKE 'SO106'               THEN CONCAT(mapto,',7+3')
@@ -235,7 +235,7 @@ def set_5_plus_2(cnxdict):
     :return: None
     """
     cnxdict['sql'] = """
-        UPDATE protocollist SET mapto = CASE
+        UPDATE temp.protocollist SET mapto = CASE
             WHEN protocol RLIKE '2.*[+].*5|5.*[+]\.*2' THEN CONCAT(mapto,',5+2')
             ELSE mapto
             END;
@@ -257,7 +257,7 @@ def set_gclam_variant(cnxdict):
         :return: None
     """
     cnxdict['sql'] = """
-        UPDATE protocollist SET mapto = CASE
+        UPDATE temp.protocollist SET mapto = CASE
                     WHEN protocol RLIKE 'D.{0,1}G.*C[LAM]{3}' THEN CONCAT(mapto,',D-GCLAM')
                     WHEN protocol RLIKE 'G.*C[LAM]{3}'        THEN CONCAT(mapto,',G-CLAM')
                     WHEN protocol RLIKE '[^0-9]2734[^0-9]'    THEN CONCAT(mapto,',G-CLAM')
@@ -285,7 +285,7 @@ def set_mec_variant(cnxdict):
         :return: None
     """
     cnxdict['sql'] = """
-        UPDATE protocollist SET mapto = CASE
+        UPDATE temp.protocollist SET mapto = CASE
                     WHEN protocol RLIKE 'D.{0,1}[MEC]{3}'         THEN CONCAT(mapto,',D-MEC')
                     WHEN protocol RLIKE 'DECI.*[MEC]{3}'          THEN CONCAT(mapto,',D-MEC')
                     WHEN protocol RLIKE '[MEC]{3}\.*DECI'         THEN CONCAT(mapto,',D-MEC')
@@ -309,7 +309,7 @@ def set_mice(cnxdict):
     :return: None
     """
     cnxdict['sql'] = """
-        UPDATE protocollist SET mapto = CASE
+        UPDATE temp.protocollist SET mapto = CASE
                     WHEN protocol RLIKE 'MICE' THEN CONCAT(mapto,',MICE')
                 ELSE mapto
             END;    """
@@ -324,7 +324,7 @@ def set_flag(cnxdict):
     :return: None
     """
     cnxdict['sql'] = """
-        UPDATE protocollist SET mapto = CASE
+        UPDATE temp.protocollist SET mapto = CASE
                     WHEN protocol RLIKE 'FLAG.?IDA' THEN CONCAT(mapto,',FLAG-IDA')
                     WHEN protocol RLIKE 'FLAG' THEN CONCAT(mapto,',FLAG')
                 ELSE mapto
@@ -341,7 +341,7 @@ def set_atra_ato(cnxdict):
     :return: None
     """
     cnxdict['sql'] = """
-    UPDATE protocollist SET mapto = CASE 
+    UPDATE temp.protocollist SET mapto = CASE
                 WHEN protocol RLIKE 'ATRA.*ATO'  THEN CONCAT(mapto,',ATRA+ATO')
                 WHEN protocol RLIKE 'ATO.*ATRA'  THEN CONCAT(mapto,',ATRA+ATO')
                 WHEN protocol RLIKE 'ATRA.*ARSE' THEN CONCAT(mapto,',ATRA+ATO')
@@ -362,7 +362,7 @@ def set_iap_iavp(cnxdict):
     :return: None
     """
     cnxdict['sql'] = """
-        UPDATE protocollist SET mapto = CASE
+        UPDATE temp.protocollist SET mapto = CASE
                     WHEN protocol RLIKE 'IAVP'              THEN CONCAT(mapto,',IAVP')
                     WHEN protocol RLIKE 'IA\.{1}PRAV'       THEN CONCAT(mapto,',IAP')
                     WHEN protocol RLIKE 'IAP'               THEN CONCAT(mapto,',IAP')
@@ -382,7 +382,7 @@ def set_hedgehog(cnxdict):
     :return: None
     """
     cnxdict['sql'] = """
-        UPDATE protocollist SET mapto = CASE
+        UPDATE temp.protocollist SET mapto = CASE
                     WHEN protocol RLIKE 'HEDGE'                    THEN CONCAT(mapto,',HEDGEHOG')
                     WHEN protocol RLIKE '[^0-9]2592[^0-9]'         THEN CONCAT(mapto,',HEDGEHOG')
                     WHEN protocol RLIKE '[^0-9][0]{0,1}9021[^0-9]' THEN CONCAT(mapto,',HEDGEHOG')
@@ -400,7 +400,7 @@ def set_epi_prime_2588(cnxdict):
     :return: None
     """
     cnxdict['sql'] = """
-        UPDATE protocollist SET mapto = CASE
+        UPDATE temp.protocollist SET mapto = CASE
                     WHEN protocol RLIKE 'EPI'              THEN CONCAT(mapto,',EPI PRIME (2588)')
                     WHEN protocol RLIKE '[^0-9]2588[^0-9]' THEN CONCAT(mapto,',EPI PRIME (2588)')
                 ELSE mapto
@@ -417,7 +417,7 @@ def set_epoch(cnxdict):
     :return: None
     """
     cnxdict['sql'] = """
-        UPDATE protocollist SET mapto = CASE
+        UPDATE temp.protocollist SET mapto = CASE
                     WHEN protocol RLIKE 'EPOCH'   THEN CONCAT(mapto,',EPOCH')
                 ELSE mapto
             END;
@@ -433,7 +433,7 @@ def set_abt_199(cnxdict):
     :return: None
     """
     cnxdict['sql'] = """
-        UPDATE protocollist SET mapto = CASE
+        UPDATE temp.protocollist SET mapto = CASE
                     WHEN protocol RLIKE ' ABT[ ]{0,1}[+]{0,1}' THEN CONCAT(mapto,',ABT-199 (9237/UW14053)')
                     WHEN protocol RLIKE 'ABT-199'              THEN CONCAT(mapto,',ABT-199 (9237/UW14053)')
                     WHEN protocol RLIKE '[^0-9]14053[^0-9]'    THEN CONCAT(mapto,',ABT-199 (9237/UW14053)')
@@ -452,7 +452,7 @@ def set_tosedostat(cnxdict):
     :return: None
     """
     cnxdict['sql'] = """
-        UPDATE protocollist SET mapto = CASE
+        UPDATE temp.protocollist SET mapto = CASE
                     WHEN protocol RLIKE ' TOSE'                     THEN CONCAT(mapto,',TOSEDOSTAT (2566)')
                     WHEN protocol RLIKE '[^0-9]2566[^0-9][ ]*[(]TA' THEN CONCAT(mapto,',TOSEDOSTAT AZA (2566)')
                     WHEN protocol RLIKE '[^0-9]2566[^0-9][ ]*[(]TD' THEN CONCAT(mapto,',TOSEDOSTAT AZA (2566)')
@@ -472,7 +472,7 @@ def set_vorino_2288_2200(cnxdict):
     :return: None
     """
     cnxdict['sql'] = """
-        UPDATE protocollist SET mapto = CASE
+        UPDATE temp.protocollist SET mapto = CASE
                     WHEN protocol RLIKE 'AZA[+]GO[+]VORINO'    THEN CONCAT(mapto,',AZA+GO+VORINO (2288)')
                     WHEN protocol RLIKE '[^0-9]2288[^0-9]'     THEN CONCAT(mapto,',AZA+GO+VORINO (2288)')
                     WHEN protocol RLIKE 'VORINO[+]GO'          THEN CONCAT(mapto,',VORINO+GO (2200)')
@@ -493,7 +493,7 @@ def set_cpx_351(cnxdict):
     :return: None
     """
     cnxdict['sql'] = """
-        UPDATE protocollist SET mapto = CASE
+        UPDATE temp.protocollist SET mapto = CASE
                 WHEN protocol RLIKE 'CPX'              THEN CONCAT(mapto,',CPX-351 (2642/2651)')
                 WHEN protocol RLIKE '[^0-9]2642[^0-9]' THEN CONCAT(mapto,',CPX-351 (2642)')
                 WHEN protocol RLIKE '[^0-9]2651[^0-9]' THEN CONCAT(mapto,',CPX-351 (2651)')
@@ -511,7 +511,7 @@ def set_bend_ida(cnxdict):
     :return: None
     """
     cnxdict['sql'] = """
-        UPDATE protocollist SET mapto = CASE
+        UPDATE temp.protocollist SET mapto = CASE
                 WHEN protocol RLIKE 'BEND'             THEN CONCAT(mapto,',BEND-IDA (2413)')
                 WHEN protocol RLIKE '[^0-9]2413[^0-9]' THEN CONCAT(mapto,',BEND-IDA (2413)')
             ELSE mapto
@@ -528,7 +528,7 @@ def set_deci_arac(cnxdict):
     :return: None
     """
     cnxdict['sql'] = """
-        UPDATE protocollist SET mapto = CASE
+        UPDATE temp.protocollist SET mapto = CASE
                     WHEN protocol RLIKE ' DEC ARA[-]C'     THEN CONCAT(mapto,',DECI+ARA-C')
                     WHEN protocol RLIKE '[^0-9]9019[^0-9]' THEN CONCAT(mapto,',DECI+ARA-C')
                 ELSE mapto
@@ -545,7 +545,7 @@ def set_clof_ldac(cnxdict):
     :return: None
     """
     cnxdict['sql'] = """
-        UPDATE protocollist SET mapto = CASE
+        UPDATE temp.protocollist SET mapto = CASE
                     WHEN protocol RLIKE 'CLOF.*LDAC'      THEN CONCAT(mapto,',CLOFARABINE+LDAC (2302)')
                     WHEN protocol RLIKE '[^0-9]2302[^0-9]' THEN CONCAT(mapto,',CLOFARABINE+LDAC (2302)')
                 ELSE mapto
@@ -562,7 +562,7 @@ def set_mito_vp16(cnxdict):
     :return: None
     """
     cnxdict['sql'] = """
-        UPDATE protocollist SET mapto = CASE
+        UPDATE temp.protocollist SET mapto = CASE
                     WHEN protocol RLIKE 'MITO\.*[+]\.*VP16' THEN CONCAT(mapto,',MITO+VP16')
                 ELSE mapto
             END;
@@ -578,7 +578,7 @@ def set_csa_prava_mito_vp16_2409(cnxdict):
     :return: None
     """
     cnxdict['sql'] = """
-        UPDATE protocollist SET mapto = CASE
+        UPDATE temp.protocollist SET mapto = CASE
                     WHEN protocol RLIKE '[^0-9]2409[^0-9]' THEN CONCAT(mapto,',2409 (CSA/PRAVA/MITO/VP16)')
                 ELSE mapto
             END;
@@ -594,7 +594,7 @@ def set_mvp16(cnxdict):
     :return: None
     """
     cnxdict['sql'] = """
-        UPDATE protocollist SET mapto = CASE
+        UPDATE temp.protocollist SET mapto = CASE
                     WHEN protocol RLIKE 'MVP *16' THEN CONCAT(mapto,',MVP16')
                 ELSE mapto
             END;
@@ -610,7 +610,7 @@ def set_mv_csa_prav(cnxdict):
     :return: None
     """
     cnxdict['sql'] = """
-        UPDATE protocollist SET mapto = CASE
+        UPDATE temp.protocollist SET mapto = CASE
                     WHEN protocol RLIKE ' MVCSAP ' THEN CONCAT(mapto,',MV CSA PRAV')
                 ELSE mapto
             END;
@@ -626,7 +626,7 @@ def set_sgn(cnxdict):
     :return: None
     """
     cnxdict['sql'] = """
-        UPDATE protocollist SET mapto = CASE 
+        UPDATE temp.protocollist SET mapto = CASE
                     WHEN protocol RLIKE 'SGN\.*CD123'       THEN CONCAT(mapto,',SGN-CD123A')
                     WHEN protocol RLIKE 'SGN\.*CD33'        THEN CONCAT(mapto,',SGN-CD33A')
                     WHEN protocol RLIKE '[^0-9]2690[^0-9]'  THEN CONCAT(mapto,',SGN-CD33A')
@@ -645,7 +645,7 @@ def set_mdx(cnxdict):
     :return: None
     """
     cnxdict['sql'] = """
-        UPDATE protocollist SET mapto = CASE 
+        UPDATE temp.protocollist SET mapto = CASE
                     WHEN protocol RLIKE 'MDX'                    THEN CONCAT(mapto,',MDX (UW09036)')
                     WHEN protocol RLIKE '[^0-9]0{0,1}9036[^0-9]' THEN CONCAT(mapto,',MDX (UW09036)')
                 ELSE mapto
@@ -662,7 +662,7 @@ def set_bmn(cnxdict):
     :return: None
     """
     cnxdict['sql'] = """
-        UPDATE protocollist SET mapto = CASE 
+        UPDATE temp.protocollist SET mapto = CASE
                     WHEN protocol RLIKE 'BMN'               THEN CONCAT(mapto,',BMN (UW11003)')
                     WHEN protocol RLIKE '[^0-9]11003[^0-9]' THEN CONCAT(mapto,',BMN (UW11003)')
                 ELSE mapto
@@ -679,7 +679,7 @@ def set_arac(cnxdict):
     :return: None
     """
     cnxdict['sql'] = """
-        UPDATE protocollist SET mapto = CASE 
+        UPDATE temp.protocollist SET mapto = CASE
                     WHEN protocol RLIKE 'H.{1}DAC'  THEN CONCAT(mapto,',HiDAC')
                     WHEN protocol RLIKE 'LDAC'      THEN CONCAT(mapto,',LDAC')
                     WHEN protocol RLIKE 'IDAC'      THEN CONCAT(mapto,',IDAC')
@@ -699,7 +699,7 @@ def set_amg(cnxdict):
     :return: None
     """
     cnxdict['sql'] = """
-        UPDATE protocollist SET mapto = CASE 
+        UPDATE temp.protocollist SET mapto = CASE
                     WHEN protocol RLIKE 'AMG\.{1}232'       THEN CONCAT(mapto,',AMG-232 (UW13037)')
                     WHEN protocol RLIKE '[^0-9]13037[^0-9]' THEN CONCAT(mapto,',AMG-232 (UW13037)')
                     WHEN protocol RLIKE 'AMG\.{1}330'       THEN CONCAT(mapto,',AMG-330 (9382)')
@@ -715,7 +715,7 @@ def set_amg(cnxdict):
 
 def set_single_agent_mapping(cnxdict=None):
     if cnxdict is None:
-        cnxdict = connect_to_mysql_db_prod('hma')
+        cnxdict = connect_to_mysql_db_prod('protocollist')
     set_sgn(cnxdict)
     set_mdx(cnxdict)
     set_bmn(cnxdict)
@@ -768,7 +768,7 @@ def set_single_agent_mapping(cnxdict=None):
             """.format(pat,drug)
     
     cnxdict['sql'] = """
-        UPDATE protocollist SET mapto = CASE
+        UPDATE temp.protocollist SET mapto = CASE
                 {0}
             ELSE mapto
         END;
@@ -786,7 +786,7 @@ def set_aza(cnxdict):
     :return: None
     """
     cnxdict['sql'] = """
-        UPDATE protocollist SET mapto = CASE
+        UPDATE temp.protocollist SET mapto = CASE
                     WHEN protocol = ' AZA '                   THEN CONCAT(mapto,',AZA')
                     WHEN protocol = ' VIDAZA '                THEN CONCAT(mapto,',AZA')
                     WHEN protocol = ' AZACITIDINE '           THEN CONCAT(mapto,',AZA')
@@ -806,7 +806,7 @@ def set_deci(cnxdict):
     :return: None
     """
     cnxdict['sql'] = """
-        UPDATE protocollist SET mapto = CASE
+        UPDATE temp.protocollist SET mapto = CASE
                     WHEN protocol RLIKE ' DECI.{0,6}[ ]*'  THEN CONCAT(mapto,',DECI')
                     WHEN protocol RLIKE '^ DECI.{0,6}[ ]*' THEN CONCAT(mapto,',DECI')
                 ELSE mapto
@@ -835,7 +835,7 @@ def set_non_induction(cnxdict):
     :return: None
     """
     cnxdict['sql'] = """
-        UPDATE protocollist SET noninduction =  CASE
+        UPDATE temp.protocollist SET noninduction =  CASE
                 WHEN mapto RLIKE 'NO TREATMENT'         THEN 'NO TREATMENT'
                 WHEN mapto RLIKE 'PALLIATIVE[/]HOSPICE' THEN 'NO TREATMENT (PALLIATIVE/HOSPICE)'
                 WHEN mapto RLIKE 'CONSULT'              THEN 'NO TREATMENT (CONSULT)'
@@ -856,7 +856,7 @@ def set_multi_agent_regimen(cnxdict):
     :return: None
     """
     cnxdict['sql'] = """
-        UPDATE protocollist SET multiregimen =  CASE
+        UPDATE temp.protocollist SET multiregimen =  CASE
                 WHEN mapto RLIKE '5[+]2'                     THEN '5+2'
                 WHEN mapto RLIKE '7[+]3'                     THEN '7+3'
                 WHEN mapto RLIKE 'ATRA[+]ATO'                THEN 'ATRA+ATO'
@@ -907,7 +907,7 @@ def set_single_agent_regimen(cnxdict):
                 WHEN protocol = ' MEK INHIBITOR '       THEN 'MEK INHIBITOR'
     """
     cnxdict['sql'] = """
-        UPDATE protocollist SET singleregimen =  CASE
+        UPDATE temp.protocollist SET singleregimen =  CASE
                 WHEN protocol = ' ACT-D '               THEN 'ACT-D'
                 WHEN protocol = ' DACT '                THEN 'ACT-D'
                 WHEN protocol = ' DACTINOMYCIN '        THEN 'ACT-D'
@@ -996,7 +996,7 @@ def set_more_groups(cnxdict):
     :return: None
     """
     cnxdict['sql'] = """
-        UPDATE protocollist SET multiregimen = CASE
+        UPDATE temp.protocollist SET multiregimen = CASE
             WHEN mapto    = ',DECI+ARA-C'            THEN 'DECI+ARA-C'
             WHEN druglist = ',decitabine,cytarabine' THEN 'DECI+ARA-C'
             ELSE multiregimen
@@ -1008,7 +1008,7 @@ def set_more_groups(cnxdict):
 
 def set_add_on_agent(cnxdict=None):
     if cnxdict is None:
-        cnxdict = connect_to_mysql_db_prod('hma')  # get a connection to the hma section for an example
+        cnxdict = connect_to_mysql_db_prod('protocollist')  # get a connection to the protocollist section for an example
     druglist =     ([['exclusionpattern1',   'exclusionpattern2',   'agent'                ]])
     druglist.extend([['[+].?SORA'        ,   'SORA'             ,   'sorafenib'            ]])
     druglist.extend([['[+].?GO'          ,   'GO'               ,   'gemtuzumab ozogamicin']])
@@ -1053,7 +1053,7 @@ def set_add_on_agent(cnxdict=None):
     cnxdict['sql'] = ''
     for pat1, pat2, drug in druglist:
         cnxdict['sql'] = cnxdict['sql'] + """
-            UPDATE protocollist SET druglist = CASE
+            UPDATE temp.protocollist SET druglist = CASE
                 WHEN CONCAT('+',protocol) RLIKE '{0}' THEN CASE
                     WHEN singleregimen NOT LIKE '{1}'
                             AND multiregimen NOT LIKE '{1}'
@@ -1072,7 +1072,7 @@ def set_add_on_agent(cnxdict=None):
 
 def build_all(cnxdict=None):
     if cnxdict is None:
-        cnxdict = connect_to_mysql_db_prod('hma')  # get a connection to the hma section for an example
+        cnxdict = connect_to_mysql_db_prod('protocollist')  # get a connection to the protocollist section for an example
     build_protocol_list(cnxdict)
     set_wildcard_flag(cnxdict)
     map_hct(cnxdict)
@@ -1097,7 +1097,7 @@ def multiregimen(writer,cnxdict):
             SELECT multiregimen
                 , count(totaluse) as protocol_variations
                 , sum(totaluse) as protcool_arrivals
-            FROM hma_201703.protocollist
+            FROM temp.protocollist
             WHERE multiregimen > ''
             GROUP BY multiregimen;
          """, cnxdict['cnx'])
@@ -1109,7 +1109,7 @@ def singleregimen(writer,cnxdict):
             SELECT singleregimen
                 , count(totaluse) as protocol_variations
                 , sum(totaluse) as protcool_arrivals
-            FROM hma_201703.protocollist
+            FROM temp.protocollist
             WHERE singleregimen > '' and multiregimen = ''
             GROUP BY singleregimen;
          """, cnxdict['cnx'])
@@ -1128,20 +1128,181 @@ def detail(writer,cnxdict):
                 , wildcard
                 , intensity
                 , totaluse as `arrivals for this variation`
-                FROM hma_201703.protocollist;
+                FROM temp.protocollist;
          """, cnxdict['cnx'])
     df.to_excel(writer, sheet_name='regimen variations', index=False)
 
 
+def create_patient_intensity_table(cnxdict,writer):
+    cnxdict['sql'] = """
+        /* ------------------------------------------------------------------------
+        Single Regimen
+        ------------------------------------------------------------------------ */
+        DROP TABLE IF EXISTS temp.t1 ;
+        CREATE TABLE temp.t1
+            SELECT singleregimen
+                    , count(totaluse) as protocol_variations
+                    , sum(totaluse) as protcool_arrivals
+                    , space(20) as Intensity
+                FROM temp.protocollist
+                WHERE singleregimen > '' and multiregimen = ''
+                GROUP BY singleregimen;
+
+        -- High Intensity -- NOTE there are not currently any high intensity single agent regimens
+        UPDATE temp.t1
+            SET Intensity = 'High'
+            WHERE singleregimen IS NOT NULL
+                AND singleregimen IN ( '' );
+
+        -- Intermediate Intensity
+        UPDATE temp.t1
+            SET Intensity = 'Intermediate'
+            WHERE singleregimen IN ('IDARUBICIN');
+
+        -- Intermediate Intensity
+        UPDATE temp.t1
+            SET Intensity = 'Low'
+            WHERE singleregimen IN
+            (     'ABT-199'
+                , 'ACT-D'
+                , 'ADCT-301'
+                , 'AMG-330'
+                , 'ATRA'
+                , 'AZA'
+                , 'DECI'
+                , 'FLX925'
+                , 'GO'
+                , 'HEDGEHOG'
+                , 'HYDROXYUREA'
+                , 'SGN-CD123A'
+                , 'SGN-CD33A'
+            );
+
+        -- Intensity Not Categorized
+        UPDATE temp.t1
+            SET Intensity = 'Not Categorized'
+            WHERE singleregimen IN
+            (     'AMG-232'
+                , 'ARA-C'
+                , 'BMN (UW11003)'
+                , 'CWP (2513)'
+                , 'HYPERCVAD'
+                , 'IGN-523'
+                , 'IT MTX'
+                , 'MDX (UW09036)'
+                , 'NALARABINE'
+                , 'PR104'
+            );
+
+
+        /* ------------------------------------------------------------------------
+        Multi Regimen
+        ------------------------------------------------------------------------ */
+        DROP TABLE IF EXISTS temp.t2 ;
+        CREATE TABLE temp.t2
+        SELECT multiregimen
+                , count(totaluse) as protocol_variations
+                , sum(totaluse) as protcool_arrivals
+                , space(20) as Intensity
+            FROM temp.protocollist
+            WHERE multiregimen > ''
+            GROUP BY multiregimen;
+
+        -- High Intensity
+        UPDATE temp.t2
+            SET Intensity = 'High'
+            WHERE multiregimen IN
+            (    'CLAG'
+                ,'CLAM'
+                ,'D-GCLAM'
+                ,'D-MEC'
+                ,'E-MEC'
+                ,'FLAG'
+                ,'FLAG-IDA'
+                ,'FLAM'
+                ,'G-CLA'
+                ,'G-CLAC'
+                ,'G-CLAM'
+                ,'IAP'
+                ,'MEC'
+            );
+
+
+        -- Intermediate Intensity
+        UPDATE temp.t2
+            SET Intensity = 'Intermediate'
+            WHERE multiregimen IN
+            (    '2409 (CSA/PRAVA/MITO/VP16)'
+                ,'5+2'
+                ,'7+3'
+                ,'BEND-IDA'
+                ,'CPX-351'
+                ,'EPOCH'
+                ,'MITO+VP16'
+                ,'MVP16'
+                ,'TOSEDOSTAT'
+            );
+
+        -- Low Intensity
+        UPDATE temp.t2
+            SET Intensity = 'Low'
+            WHERE multiregimen IN
+            (    'AC-225 (2572)'
+                ,'AZA+GO+VORINO'
+                ,'AZA+VORINO'
+                ,'CLOF+LDAC'
+                ,'DECI+ARA-C'
+                ,'ON 01910.Na (2534)'
+                ,'VORINO+GO'
+            );
+
+        -- Intensity Not Categorized
+        UPDATE temp.t2
+            SET Intensity = 'Not Categorized'
+            WHERE multiregimen IN
+            (    'ATRA+ATO'
+                ,'MICE'
+                ,'MITO+VP16'
+            );
+
+        DROP TABLE IF EXISTS IntensityMapping ;
+        CREATE TABLE IntensityMapping
+            SELECT  a.UWID as PtMRN
+                    , t3.PatientId
+                    , a.ArrivalDate
+                    , a.Protocol
+                    , CASE
+                        WHEN t1.Intensity IS NOT NULL THEN t1.Intensity
+                        WHEN t2.Intensity IS NOT NULL THEN t2.intensity
+                        ELSE 'Unknown'
+                    END AS Intensiy
+                FROM amldatabase2.pattreatment a
+                LEFT JOIN temp.protocollist b        ON a.Protocol = b.OriginalProtocol
+                LEFT JOIN temp.t1                    ON t1.singleregimen = b.singleregimen
+                LEFT JOIN temp.t2                    ON t2.multiregimen = b.multiregimen
+                LEFT JOIN caisis.vdatasetpatients t3 ON a.UWID = t3.PtMRN
+                WHERE b.pk IS NOT NULL
+                ORDER BY UWID, ArrivalDate;
+
+        ALTER TABLE Temp.IntensityMapping
+            ADD INDEX `PatientId` (`PatientId` ASC),
+            ADD INDEX `PtMRN`       (`PtMRN`(10) ASC),
+            ADD INDEX `ArrivalDate` (`ArrivalDate` ASC);
+    """
+    dosqlexecute(cnxdict)
+    return
+
+
 
 def createsummary():
-    cnxdict = connect_to_mysql_db_prod('hma')  # get a connection to the hma section for an example
+    cnxdict = connect_to_mysql_db_prod('protocollist')  # get a connection to the protocollist section for an example
     print(cnxdict['out_filepath'])
     writer = pd.ExcelWriter(cnxdict['out_filepath'], engine='xlsxwriter')
     multiregimen(writer,cnxdict)
     singleregimen(writer,cnxdict)
     detail(writer,cnxdict)
+    create_patient_intensity_table(cnxdict, writer)
     writer.close()
 
-# build_all()
+build_all()
 createsummary()

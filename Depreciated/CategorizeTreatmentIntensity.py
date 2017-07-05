@@ -1,5 +1,4 @@
-from MySQLdbUtils import *
-from CategorizeProtocol import *
+from Depreciated.CategorizeProtocol import *
 
 
 def assign_intensity(cnxdict):

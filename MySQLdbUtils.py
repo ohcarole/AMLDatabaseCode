@@ -1,11 +1,9 @@
-from GeneralUtils import *
-import pandas.io.sql as sql
-from Connection import *
-import MySQLdb as db
-import pandas as pd
-import numpy as np
 import sys
 from warnings import filterwarnings, resetwarnings
+import MySQLdb as db
+import pandas as pd
+import pandas.io.sql as sql
+from Connection import *
 filterwarnings('ignore', category = db.Warning)
 reload(sys)
 
@@ -24,6 +22,28 @@ def connect_to_mysql_db_prod(sect):
     return cnxdict
 
 
+def get_colnames(cnxdict, sch='', tbl=''):
+    if tbl == '':
+        tbl = cnxdict['currtable']
+    if sch == '':
+        sch = cnxdict['schema']
+    cnxdict['sql'] = """
+        SELECT
+            COLUMN_NAME
+        FROM
+            INFORMATION_SCHEMA.COLUMNS
+        WHERE
+            TABLE_SCHEMA = '{0}'
+                AND TABLE_NAME = '{1}';
+    """.format(sch, tbl)
+    temp = dosqlexecute(cnxdict)
+    # scan cursor
+    collist = ''
+    for row in cnxdict['crs']:
+        collist = collist + ', `' + row[0] + '`'
+    return collist
+
+
 def dosqlexecute(cnxdict, Single=False):
     filterwarnings('ignore', category=db.Warning)
     reload(sys)
@@ -36,7 +56,7 @@ def dosqlexecute(cnxdict, Single=False):
         delimit = ';'
     for cmd in cnxdict['sql'].split(delimit):
         recent_rows_changed = 0
-        cnxdict['sql'] = removepad(cmd) + delimit
+        cnxdict['sql'] = cmd.strip() + delimit
         if cnxdict['sql'] == delimit:
             pass
         else:
@@ -84,7 +104,7 @@ def dosqlupdate(cnxdict,Single=False):
         cnxdict['sql'] = cnxdict['sql'].strip()[:-1] + delimit
     for cmd in cnxdict['sql'].split(delimit):
         recent_rows_changed = 0
-        cnxdict['sql'] = removepad(cmd) + delimit
+        cnxdict['sql'] = cmd.strip() + delimit
         if cnxdict['sql'] == delimit:
             pass
         else:

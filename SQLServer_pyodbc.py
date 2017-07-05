@@ -1,9 +1,6 @@
-from Connection import *
 import pyodbc
 
-import pandas as pd
 from MySQLdbUtils import *
-import pandas.io.sql as sql
 
 
 def connect_to_caisisprod(cnxdict):
