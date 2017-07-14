@@ -1,5 +1,6 @@
 from xlsxwriter.workbook import Workbook
 import os
+from MessageBox import *
 print(os.path.dirname(os.path.realpath(__file__)))
 from MySQLdbUtils import *
 import sys, re
@@ -98,6 +99,12 @@ def create_rangetable(cnxdict, writer):
         ALTER TABLE `temp`.`t1`
             ADD INDEX `UWID`        (`UWID`(10) ASC),
             ADD INDEX `ArrivalDate` (`ArrivalDate` ASC);
+        DROP TABLE IF EXISTS temp.rangetable;
+        CREATE TABLE temp.rangetable
+            SELECT * FROM temp.t1;
+        ALTER TABLE `temp`.`rangetable`
+            ADD INDEX `UWID`        (`UWID`(10) ASC),
+            ADD INDEX `ArrivalDate` (`ArrivalDate` ASC);
     """
     print (cnxdict['sql'])
     dosqlexecute(cnxdict)
@@ -135,6 +142,7 @@ def create_temp_lab_table(cnxdict,labtest,writer):
             FROM temp.t1
                 LEFT JOIN caisis.{0} as t2 on t1.UWID = t2.PtMRN
                 WHERE t2.LabDate between t1.StartDateRange and t1.EndDateRange
+                AND   LEFT(LTRIM(t2.LabResult),1) IN ('.','0','1','2','3','4','5','6','7','8','9','<','>','.')
                 ORDER BY t1.UWID, t1.TargetDate, DaysFromTarget;
 
         DROP TABLE IF EXISTS temp.{0} ;
@@ -176,7 +184,7 @@ def create_arrival_lab_summary(cnxdict,cmd,joincmd,writer):
                 , t0.TreatmentStartDate
                 , t0.ResponseDate
                 {0}
-            FROM temp.t1 t0
+            FROM temp.rangetable t0
                 {1}
             GROUP BY t0.UWID, t0.ArrivalDate;
     """.format(cmd,joincmd)
@@ -190,43 +198,58 @@ def create_arrival_lab_summary(cnxdict,cmd,joincmd,writer):
 
 
 def MainRoutine( cnxdict ):
-    writer = pd.ExcelWriter(cnxdict['out_filepath'])
+    book = load_workbook(cnxdict['out_filepath'])
+    writer = pd.ExcelWriter(cnxdict['out_filepath'], engine='openpyxl')
+    writer.book = book
+    writer.sheets = dict((ws.title, ws) for ws in book.worksheets)
 
-    """
     # Only need to run this if we are looking for other ranges besides arrival, treatment, and response from amldatabase2
     # This will need some thinking to switch to using Caisis exclusively
-    try:
-        create_rangetable(cnxdict, writer)
-    except:
-        pass
-    lablist = ('albumin','creatinine','hematocrit','hemoglobin','neutrophil','rbc','wbc','platelet')
-    for labtest in lablist:
-        print('Creating temp table for {}'.format(labtest))
-        create_temp_lab_table(cnxdict,labtest,writer)
-    lablist = ('albumin','creatinine','hematocrit','hemoglobin','neutrophil','rbc','wbc','platelet')
-    """
-    lablist = ('albumin','creatinine','hematocrit','hemoglobin','neutrophil','rbc','wbc','platelet')
-    cmd     = ''
-    joincmd = ''
-    tblnum=0
-    timepointlist = ('arrival','treatment','response')
-    for timepoint in timepointlist:
+
+    keepongoing = 'yes'
+    MsgResp = tkMessageBox.showinfo(title="Range Data"
+                                    , message="Use existing range data?"
+                                    , type="yesnocancel")
+    window.wm_withdraw()
+    if MsgResp == 'no':
+        try:
+             create_rangetable(cnxdict, writer)
+        except:
+             pass
+    elif MsgResp == 'cancel':
+        keepongoing = 'no'
+
+    if keepongoing == 'yes':
+        lablist = ('albumin','creatinine','hematocrit','hemoglobin','neutrophil','rbc','wbc','platelet','v_blast', 'v_unclassified')
         for labtest in lablist:
-            tblnum = tblnum+1
-            cmd = cmd + """
-                , {0}.LabDate   AS `{1}_{2}_date`
-                , {0}.LabResult AS `{1}_{2}`
-                , {0}.LabUnits  AS `{1}_{2}_units`
-            """.format('tbl_' + str(tblnum),timepoint,labtest)
+            print('Creating temp table for {}'.format(labtest))
+            create_temp_lab_table(cnxdict,labtest,writer)
+        lablist = ('albumin','creatinine','hematocrit','hemoglobin','neutrophil','rbc','wbc','platelet','v_blast', 'v_unclassified')
+        cmd     = ''
+        joincmd = ''
+        tblnum=0
+        timepointlist = ('arrival','treatment','response')
+        for timepoint in timepointlist:
+            for labtest in lablist:
+                tblnum = tblnum+1
+                cmd = cmd + """
+                    , {0}.LabDate   AS `{1}_{2}_date`
+                    , {0}.LabResult AS `{1}_{2}`
+                    , {0}.LabUnits  AS `{1}_{2}_units`
+                """.format('tbl_' + str(tblnum),timepoint,labtest)
 
-            joincmd = joincmd + """LEFT JOIN temp.{3} {0}
-                    ON t0.UWID = {0}.UWID AND t0.ArrivalDate = {0}.ArrivalDate AND left({0}.type,{2}) = '{1}'
-            """.format('tbl_' + str(tblnum),timepoint.upper(), len(timepoint), labtest)
+                joincmd = joincmd + """LEFT JOIN temp.{3} {0}
+                        ON t0.UWID = {0}.UWID AND t0.ArrivalDate = {0}.ArrivalDate AND left({0}.type,{2}) = '{1}'
+                """.format('tbl_' + str(tblnum),timepoint.upper(), len(timepoint), labtest)
 
-    create_arrival_lab_summary(cnxdict,cmd,joincmd,writer)
+        create_arrival_lab_summary(cnxdict,cmd,joincmd,writer)
+
+        outputfile = cnxdict['out_filedir'] + '\\' + cnxdict['out_filename'] + '.' + cnxdict['out_fileext']
+        print(outputfile)
 
     writer.save()
     writer.close()
     return None
+
 
 MainRoutineResult = MainRoutine(cnxdict)

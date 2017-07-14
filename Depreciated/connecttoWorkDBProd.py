@@ -1,5 +1,4 @@
 from SQLServer_pyodbc import *
-from sqlalchemy import create_engine
 
 cnxdict = read_db_config('caisiswork')
 cnxdict = connect_to_caisisprod(cnxdict)

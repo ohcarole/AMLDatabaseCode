@@ -1,6 +1,7 @@
+from sqlalchemy import create_engine
+
 from Examples.SendNote import *
 from SQLServer_pyodbc import *
-from sqlalchemy import create_engine
 
 
 # engine = create_engine('mysql+mysqldb://carole_shaw:1UglyBunnyHop%%%@MYSQL-DB-PRD/caisis')

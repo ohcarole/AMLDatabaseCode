@@ -1275,7 +1275,7 @@ def create_patient_intensity_table(cnxdict,writer):
                         WHEN t1.Intensity IS NOT NULL THEN t1.Intensity
                         WHEN t2.Intensity IS NOT NULL THEN t2.intensity
                         ELSE 'Unknown'
-                    END AS Intensiy
+                    END AS Intensity
                 FROM amldatabase2.pattreatment a
                 LEFT JOIN temp.protocollist b        ON a.Protocol = b.OriginalProtocol
                 LEFT JOIN temp.t1                    ON t1.singleregimen = b.singleregimen

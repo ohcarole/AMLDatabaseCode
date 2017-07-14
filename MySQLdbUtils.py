@@ -1,11 +1,14 @@
 import sys
+reload(sys)
+sys.setdefaultencoding('utf8')
+from GeneralUtils import *
 from warnings import filterwarnings, resetwarnings
 import MySQLdb as db
 import pandas as pd
 import pandas.io.sql as sql
+from openpyxl import load_workbook
 from Connection import *
 filterwarnings('ignore', category = db.Warning)
-reload(sys)
 
 
 def connect_to_mysql_db_prod(sect):
@@ -45,6 +48,73 @@ def get_colnames(cnxdict, sch='', tbl=''):
 
 
 def dosqlexecute(cnxdict, Single=False):
+    # cnxdict = connect_to_mysql_db_prod('nadir')
+    filterwarnings('ignore', category=db.Warning)
+    reload(sys)
+    rows_changed = 0
+    if Single:  # not using default delimiter
+        delimit = '<end-of-code>'
+        if cnxdict['sql'].strip()[-1:] == ';':  # last char is a semicolon
+            cnxdict['sql'] = cnxdict['sql'].strip()[:-1] + delimit
+    else:
+        delimit = ';'
+    for cmd in cnxdict['sql'].split(delimit):
+        recent_rows_changed = 0
+        cnxdict['sql'] = cmd.strip() + delimit
+        if cnxdict['sql'] == delimit:
+            pass
+        else:
+            cnxdict['sql'] = cnxdict['sql'].replace('<semicolon>', ';')
+            cnxdict['sql'] = cnxdict['sql'].replace('<end-of-code>', ';')
+            if 'insert' in cnxdict['sql'].lower():
+                try:
+                    cnxdict['crs'].execute(cnxdict['sql'])
+                    cnxdict['db'].commit()
+                    recent_rows_changed = cnxdict['crs'].rowcount
+                except:
+                    print ('-- SQL Insert Failed:')
+                    print(cnxdict['sql'])
+                    cnxdict['cnx'].close()
+            elif 'update' in cnxdict['sql'].lower():
+                try:
+                    cnxdict['crs'].execute(cnxdict['sql'])
+                    cnxdict['db'].commit()
+                    recent_rows_changed = cnxdict['crs'].rowcount
+                except:
+                    print ('-- SQL Update Failed:')
+                    print(cnxdict['sql'])
+                    cnxdict['cnx'].close()
+            elif 'create' in cnxdict['sql'].lower():
+                try:
+                    sql.execute(cnxdict['sql'], cnxdict['db'])
+                    cnxdict['cnx'].commit()
+                    """ Should be able to get number of rows from the INFORMATION_SCHEMA table as in this example:
+                        SELECT    TABLE_ROWS
+                            FROM  INFORMATION_SCHEMA.PARTITIONS
+                            WHERE TABLE_SCHEMA = 'fungal'
+                            AND   TABLE_NAME   = 'patientlist';
+                        recent_rows_changed = cnxdict['crs'].rowcount
+                    """
+                except:
+                    print ('-- SQL Create Failed:')
+                    print(cnxdict['sql'])
+                    cnxdict['cnx'].close()
+            else:
+                try:
+                    sql.execute(cnxdict['sql'], cnxdict['db'])
+                    cnxdict['cnx'].commit()
+                except:
+                    print('-- SQL Command Failed:')
+                    print(cnxdict['sql'])
+
+            if recent_rows_changed > rows_changed:
+                rows_changed = recent_rows_changed
+    resetwarnings()
+    return rows_changed
+
+
+def dosqlexecute_old(cnxdict, Single=False):
+    # cnxdict = connect_to_mysql_db_prod('nadir')
     filterwarnings('ignore', category=db.Warning)
     reload(sys)
     rows_changed = 0
@@ -85,7 +155,8 @@ def dosqlexecute(cnxdict, Single=False):
                     sql.execute(cnxdict['sql'], cnxdict['db'])
                     cnxdict['cnx'].commit()
             except Exception:
-                print 'SQL Execute Failed:', cnxdict['sql']
+                print ( 'SQL Execute Failed:\n', cnxdict['sql'] )
+
             if recent_rows_changed > rows_changed:
                 rows_changed = recent_rows_changed
     resetwarnings()
@@ -116,7 +187,7 @@ def dosqlupdate(cnxdict,Single=False):
                 cnxdict['db'].commit()
                 recent_rows_changed = cnxdict['crs'].rowcount
             except Exception:
-                print 'SQL Execute Failed:', cnxdict['sql']
+                print ('SQL Execute Failed:', cnxdict['sql'])
             if recent_rows_changed > rows_changed:
                 rows_changed = recent_rows_changed
     resetwarnings()
@@ -126,7 +197,7 @@ def dosqlupdate(cnxdict,Single=False):
 def dosqlread(cmd,con):
     filterwarnings('ignore', category=db.Warning)
     try:
-        df = pd.read_sql(cmd,con)
+        df = pd.read_sql(cmd,con,)
     except Exception:
         df = ''
     return df

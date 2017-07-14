@@ -1,14 +1,12 @@
-import Tkinter
 import time
-import tkMessageBox
+from MessageBox import *
 
+from MySQLdbUtils import *
+from SQLServerUtils import *
+from Connection import *
 from SQLServer_pyodbc import *
 from SendNote import mail
 from sqlalchemy import create_engine
-
-window = Tkinter.Tk()
-window.wm_withdraw()
-
 
 # engine = create_engine('mysql+mysqldb://carole_shaw:1UglyBunnyHop%%%@MYSQL-DB-PRD/caisis')
 
@@ -135,7 +133,7 @@ def call_stored_procedure(procname):
 def get_caisis_tables():
 
     cnxdict = read_db_config('caisiswork')
-    engine = create_engine('mysql+mysqldb://{0}:{1}@MYSQL-DB-PRD/caisis'.format(cnxdict['mysqluser'],cnxdict['mysqlpwd']))
+    engine = create_engine('mysql+mysqldb://{0}:{1}@MYSQL-DB-PRD/caisis'.format(cnxdict['mysqluser'],cnxdict['mysqlpwd'],collation='Latin1_General'))
     cnxdict = connect_to_caisisprod(cnxdict)
 
     tbllist = """
@@ -151,6 +149,10 @@ def get_caisis_tables():
         Platelet
         RBC
         WBC
+
+        PatientsAccessed
+        NewPatientsAccessed
+
         vDatasetCategories
         vDatasetComorbidities
         vDatasetEncounters
@@ -163,13 +165,12 @@ def get_caisis_tables():
         vDatasetPatientProtocols
         vDatasetPatientProtocolStatus
         vDatasetPatients
+        vDatasetPatientsNoNames
         vDatasetProcedures
         vDatasetRadiationTherapy
         vDatasetStatus
     """
-    tbllist = """
-        Platelet
-    """
+
     print('-- Moving Caisis tables to MySQL')
     for tbl in tbllist.split('\n'):
         tbl = tbl.strip().replace(' ', '_').lower()
@@ -202,6 +203,7 @@ def get_caisis_tables():
 
             print ('-- Dataframe complete, copy dataframe to MySQL table Caisis.{0}'.format(tbl))
             putinmysql(df, tempsql, tbl, engine)
+
     print('-- Done moving Caisis tables to MySQL')
 
 
