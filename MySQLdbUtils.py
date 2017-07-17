@@ -8,6 +8,7 @@ import pandas as pd
 import pandas.io.sql as sql
 from openpyxl import load_workbook
 from Connection import *
+import sys, re, inspect
 filterwarnings('ignore', category = db.Warning)
 
 
@@ -74,7 +75,7 @@ def dosqlexecute(cnxdict, Single=False):
                 except:
                     print ('-- SQL Insert Failed:')
                     print(cnxdict['sql'])
-                    cnxdict['cnx'].close()
+                    cnxdict['crs'].close()
             elif 'update' in cnxdict['sql'].lower():
                 try:
                     cnxdict['crs'].execute(cnxdict['sql'])
@@ -83,7 +84,7 @@ def dosqlexecute(cnxdict, Single=False):
                 except:
                     print ('-- SQL Update Failed:')
                     print(cnxdict['sql'])
-                    cnxdict['cnx'].close()
+                    cnxdict['crs'].close()
             elif 'create' in cnxdict['sql'].lower():
                 try:
                     sql.execute(cnxdict['sql'], cnxdict['db'])
@@ -98,7 +99,6 @@ def dosqlexecute(cnxdict, Single=False):
                 except:
                     print ('-- SQL Create Failed:')
                     print(cnxdict['sql'])
-                    cnxdict['cnx'].close()
             else:
                 try:
                     sql.execute(cnxdict['sql'], cnxdict['db'])
