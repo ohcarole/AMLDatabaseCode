@@ -1,5 +1,6 @@
 # from mysql.connector import MySQLConnection, Error, errorcode
 import ConfigParser
+import time
 
 def read_db_config( sect, config='J:\Estey_AML\AML Programming\Python\sharedUtils\Config.ini' ):
     """ Read database configuration file and return a dictionary object
@@ -32,9 +33,9 @@ def read_db_config( sect, config='J:\Estey_AML\AML Programming\Python\sharedUtil
     return db
 
 
+
 def buildfilepath(cnxdict, filename=''):
     if filename == '':
         filename = cnxdict['out_filename']
-    outputfile = cnxdict['out_filedir'] + '\\' + filename + '.' + cnxdict['out_fileext']
-    print(outputfile)
+    outputfile = cnxdict['out_filedir'] + '\\' + filename + '_' + time.strftime('%Y%m%d') + '.' + cnxdict['out_fileext']
     return outputfile

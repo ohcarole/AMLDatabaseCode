@@ -1,3 +1,4 @@
+from __future__ import print_function
 import sys
 reload(sys)
 sys.setdefaultencoding('utf8')
@@ -8,8 +9,54 @@ import pandas as pd
 import pandas.io.sql as sql
 from openpyxl import load_workbook
 from Connection import *
-import sys, re, inspect
+import sys, re, inspect, datetime, time, os
 filterwarnings('ignore', category = db.Warning)
+# db.autocommit(True)
+
+print(time.strftime("%c"))
+
+def test():
+    printtext('stack')
+
+
+def cleandataframe(df, colname):
+    df[colname].replace([u'\u00A0'], " ", regex=True,  inplace=True)  # non-breaking space
+    df[colname].replace([u'\u2013'], "--", regex=True,  inplace=True) # double dash
+    df[colname].replace([u'\u2019'], "'", regex=True,   inplace=True) # right single quote
+    df[colname].replace([u'\u2022'], " ", regex=True,   inplace=True) # bullet
+    df[colname].replace([u'\u2026'], "...", regex=True, inplace=True) # horizontal ellipsis
+    # unicode_replacements = [('non-breaking space', [u'\u00A0',], " "),
+    #                         ('double-dash', [u'\u2013',], "--"),
+    #                         ('right single quote', [u'\u2019',], "'"),
+    #                         ('bullet', [u'\u00A0',], " "),
+    #                         ('horizontal ellipsis', [u'\u2022',], "...")]
+    # for rpl in unicode_replacements:
+    #     print('Removing: {}'.format(rpl[0]))
+    #     try:
+    #         df[colname].replace(rpl[1], '{}'.format(rpl[2]), regex=True, inplace=True)  # no-breaking space
+    #     except:
+    #         pass
+    return df
+
+
+def clean_common_df_error_columns(df, collist=('PathResult','PathNotes','PathKaryotype','MedTxNotes','StatusNotes')):
+    for colname in collist:
+        if colname in df.columns:
+            print ('Cleaning: {}'.format(colname))
+            df = cleandataframe(df,colname)
+    return df
+
+
+def printtext(txt, debugmode = False, showstackinfo = True):
+    if debugmode == True:
+        print(txt)
+    elif showstackinfo == True and txt.find('stack') > -1:
+        # prints the parent routine's name
+        print(    '\nProgram:\t'
+                + inspect.stack()[1][1]
+                + ' \nFunction:\t'
+                + inspect.stack()[1][3])
+    return
 
 
 def connect_to_mysql_db_prod(sect):
@@ -23,7 +70,20 @@ def connect_to_mysql_db_prod(sect):
     sql.execute("USE {}".format(cnxdict['schema']), cnxdict['cnx'])
     cnxdict['crs'] = cnxdict['db'].cursor()
     cnxdict['out_filepath'] = buildfilepath(cnxdict)
+    print(cnxdict['out_filepath'] )
     return cnxdict
+
+
+def dowritersave(writer,cnxdict):
+    df = pd.read_sql("""
+        SELECT 'Program Name:  {0}' as `Program Property List` union
+        SELECT 'Developer:  Carole Shaw' as `Program Property List` union
+        SELECT 'Created:  {1}' as `Program Property List` ;
+    """.format( os.path.sys.argv[0]
+               ,time.strftime("%c")), cnxdict['cnx'])
+    df.to_excel(writer, sheet_name='Program information', index=False)
+    writer.save()
+    writer.close()
 
 
 def get_colnames(cnxdict, sch='', tbl=''):
@@ -53,6 +113,7 @@ def dosqlexecute(cnxdict, Single=False):
     filterwarnings('ignore', category=db.Warning)
     reload(sys)
     rows_changed = 0
+    recent_rows_changed = 0
     if Single:  # not using default delimiter
         delimit = '<end-of-code>'
         if cnxdict['sql'].strip()[-1:] == ';':  # last char is a semicolon
@@ -60,7 +121,6 @@ def dosqlexecute(cnxdict, Single=False):
     else:
         delimit = ';'
     for cmd in cnxdict['sql'].split(delimit):
-        recent_rows_changed = 0
         cnxdict['sql'] = cmd.strip() + delimit
         if cnxdict['sql'] == delimit:
             pass
@@ -76,6 +136,16 @@ def dosqlexecute(cnxdict, Single=False):
                     print ('-- SQL Insert Failed:')
                     print(cnxdict['sql'])
                     cnxdict['crs'].close()
+                    return -1
+                # if 'insert' in cnxdict['sql'].lower():
+                #     try:
+                #         cnxdict['crs'].execute(cnxdict['sql'])
+                #         cnxdict['db'].commit()
+                #         recent_rows_changed = cnxdict['crs'].rowcount
+                #     except:
+                #         print('-- SQL Insert Failed:')
+                #         print(cnxdict['sql'])
+                #         cnxdict['crs'].close()
             elif 'update' in cnxdict['sql'].lower():
                 try:
                     cnxdict['crs'].execute(cnxdict['sql'])
@@ -109,56 +179,7 @@ def dosqlexecute(cnxdict, Single=False):
 
             if recent_rows_changed > rows_changed:
                 rows_changed = recent_rows_changed
-    resetwarnings()
-    return rows_changed
 
-
-def dosqlexecute_old(cnxdict, Single=False):
-    # cnxdict = connect_to_mysql_db_prod('nadir')
-    filterwarnings('ignore', category=db.Warning)
-    reload(sys)
-    rows_changed = 0
-    if Single:  # not using default delimiter
-        delimit = '<end-of-code>'
-        if cnxdict['sql'].strip()[-1:] == ';':  # last char is a semicolon
-            cnxdict['sql'] = cnxdict['sql'].strip()[:-1] + delimit
-    else:
-        delimit = ';'
-    for cmd in cnxdict['sql'].split(delimit):
-        recent_rows_changed = 0
-        cnxdict['sql'] = cmd.strip() + delimit
-        if cnxdict['sql'] == delimit:
-            pass
-        else:
-            cnxdict['sql'] = cnxdict['sql'].replace('<semicolon>', ';')
-            cnxdict['sql'] = cnxdict['sql'].replace('<end-of-code>', ';')
-            try:
-                if 'insert' in cnxdict['sql'].lower():
-                    cnxdict['crs'].execute(cnxdict['sql'])
-                    cnxdict['db'].commit()
-                    recent_rows_changed = cnxdict['crs'].rowcount
-                elif 'update' in cnxdict['sql'].lower():
-                    cnxdict['crs'].execute(cnxdict['sql'])
-                    cnxdict['db'].commit()
-                    recent_rows_changed = cnxdict['crs'].rowcount
-                elif 'create' in cnxdict['sql'].lower():
-                    sql.execute(cnxdict['sql'], cnxdict['db'])
-                    cnxdict['cnx'].commit()
-                    """ Should be able to get number of rows from the INFORMATION_SCHEMA table as in this example:
-                        SELECT    TABLE_ROWS
-                            FROM  INFORMATION_SCHEMA.PARTITIONS
-                            WHERE TABLE_SCHEMA = 'fungal'
-                            AND   TABLE_NAME   = 'patientlist';
-                        recent_rows_changed = cnxdict['crs'].rowcount
-                    """
-                else:
-                    sql.execute(cnxdict['sql'], cnxdict['db'])
-                    cnxdict['cnx'].commit()
-            except Exception:
-                print ( 'SQL Execute Failed:\n', cnxdict['sql'] )
-
-            if recent_rows_changed > rows_changed:
-                rows_changed = recent_rows_changed
     resetwarnings()
     return rows_changed
 
@@ -197,7 +218,8 @@ def dosqlupdate(cnxdict,Single=False):
 def dosqlread(cmd,con):
     filterwarnings('ignore', category=db.Warning)
     try:
-        df = pd.read_sql(cmd,con,)
+        df = pd.read_sql(cmd,con) # df = pd.read_sql(cmd,con,)
+        df = clean_common_df_error_columns(df)
     except Exception:
         df = ''
     return df

@@ -1,0 +1,734 @@
+DROP TABLE IF EXISTS protocolcategory.CleanAllAgents;
+CREATE TABLE protocolcategory.CleanAllAgents
+    SELECT    MedTxAgent AS OrigMedTxAgent
+            , UPPER(LTRIM(MedTxAgent)) AS MedTxAgent
+            , COUNT(*) as Total
+        FROM caisis.vdatasetmedicaltherapy
+        WHERE MedTxDisease LIKE '%aml%'
+        GROUP BY UPPER(LTRIM(MedTxAgent)) ;
+
+UPDATE protocolcategory.CleanAllAgents
+    SET MedTxAgent = REPLACE(MedTxAgent,'ANDDECIT','+DECIT');
+UPDATE protocolcategory.CleanAllAgents
+    SET MedTxAgent = REPLACE(MedTxAgent,' AND ',' +');
+UPDATE protocolcategory.CleanAllAgents
+    SET MedTxAgent = REPLACE(MedTxAgent,'TREATEMENT','TREATMENT');
+UPDATE protocolcategory.CleanAllAgents
+    SET MedTxAgent = REPLACE(MedTxAgent,'(X6)','');
+UPDATE protocolcategory.CleanAllAgents
+    SET MedTxAgent = REPLACE(MedTxAgent,'(INDUCTION)','');
+UPDATE protocolcategory.CleanAllAgents
+    SET MedTxAgent = REPLACE(MedTxAgent,',',' +');
+UPDATE protocolcategory.CleanAllAgents
+    SET MedTxAgent = REPLACE(MedTxAgent,'.',' +');
+UPDATE protocolcategory.CleanAllAgents
+    SET MedTxAgent = REPLACE(MedTxAgent,'(OUTSIDE)','');
+UPDATE protocolcategory.CleanAllAgents
+    SET MedTxAgent = REPLACE(MedTxAgent,' + +',' +');
+UPDATE protocolcategory.CleanAllAgents
+    SET MedTxAgent = REPLACE(MedTxAgent,' + +',' +');
+UPDATE protocolcategory.CleanAllAgents
+    SET MedTxAgent = REPLACE(MedTxAgent,'+ ','+');
+UPDATE protocolcategory.CleanAllAgents
+    SET MedTxAgent = REPLACE(MedTxAgent,'++','+');
+UPDATE protocolcategory.CleanAllAgents
+    SET MedTxAgent = REPLACE(MedTxAgent,'HIGH DOSE ARA-C','HIDAC');
+UPDATE protocolcategory.CleanAllAgents
+    SET MedTxAgent = REPLACE(MedTxAgent,'ONLY','');
+UPDATE protocolcategory.CleanAllAgents
+    SET MedTxAgent = REPLACE(MedTxAgent,'X2','');
+UPDATE protocolcategory.CleanAllAgents
+    SET MedTxAgent = REPLACE(MedTxAgent,'S1','');
+UPDATE protocolcategory.CleanAllAgents
+    SET MedTxAgent = REPLACE(MedTxAgent,'S2','');
+UPDATE protocolcategory.CleanAllAgents
+    SET MedTxAgent = REPLACE(MedTxAgent,'S3','');
+UPDATE protocolcategory.CleanAllAgents
+    SET MedTxAgent = REPLACE(MedTxAgent,'S4','');
+UPDATE protocolcategory.CleanAllAgents
+    SET MedTxAgent = REPLACE(MedTxAgent,'()-','');
+UPDATE protocolcategory.CleanAllAgents
+    SET MedTxAgent = LTRIM(MedTxAgent);
+UPDATE protocolcategory.CleanAllAgents
+    SET MedTxAgent =
+    CASE
+        WHEN LEFT(MedTxAgent,1) = '-' THEN SUBSTR(MedTxAgent,2,30)
+        ELSE MedTxAgent
+    END;
+UPDATE protocolcategory.CleanAllAgents
+    SET MedTxAgent = REPLACE(MedTxAgent,'()','');
+UPDATE protocolcategory.CleanAllAgents
+    SET MedTxAgent = 'LENALIDOMIDE'
+    WHERE MedTxAgent = 'LENALID';
+UPDATE protocolcategory.CleanAllAgents
+    SET MedTxAgent = REPLACE(MedTxAgent,'SORAFINIB','SORAFENIB');
+UPDATE protocolcategory.CleanAllAgents
+    SET MedTxAgent = LTRIM(MedTxAgent);
+
+DROP TABLE IF EXISTS protocolcategory.CherryPicking;
+CREATE TABLE protocolcategory.CherryPicking
+    SELECT OrigMedTxAgent
+        , MedTxAgent
+        , SUM(Total) as Total
+        , SPACE(30) AS Categorized
+        , SPACE(30) AS Intensity
+        , CASE
+            WHEN MedTxAgent RLIKE 'OFF' THEN 'Yes'
+            ELSE ''
+        END AS WildCard
+        , CASE
+            WHEN MedTxAgent RLIKE 'NO TREATMENT'    THEN 'Yes'
+            WHEN MedTxAgent RLIKE 'NON.+TREATMENT'  THEN 'Yes'
+            WHEN MedTxAgent RLIKE 'NOT TREATED'     THEN 'Yes'
+            WHEN MedTxAgent RLIKE 'UNKNOWN'         THEN 'Yes'
+            WHEN MedTxAgent RLIKE 'PALLIATIVE CARE' THEN 'Yes'
+            WHEN MedTxAgent RLIKE 'OUTSIDE RX'      THEN 'Yes'
+            WHEN MedTxAgent RLIKE 'HOSPICE'         THEN 'Yes'
+            ELSE ''
+        END AS `NOT TREATED`
+        , CASE
+            WHEN MedTxAgent RLIKE 'AMG.*232' THEN 'Yes'
+            WHEN MedTxAgent RLIKE 'AMG[[:space:]]232' THEN 'Yes'
+            ELSE ''
+        END AS `AMG-232`
+        , CASE
+            -- EXCLUDE
+            WHEN MedTxAgent RLIKE 'MICE.*GO' THEN ''
+            -- INCLUSION
+            WHEN MedTxAgent RLIKE 'MICE' THEN 'Yes'
+            ELSE ''
+        END AS `MICE`        , CASE
+            WHEN MedTxAgent RLIKE 'MICE.*GO' THEN 'Yes'
+            ELSE ''
+        END AS `MICE +GO`
+        , CASE
+            WHEN MedTxAgent RLIKE 'AMG.*330' THEN 'Yes'
+            WHEN MedTxAgent RLIKE 'AMG[[:space:]]330' THEN 'Yes'
+            ELSE ''
+        END AS `AMG-330`
+        , CASE
+            -- EXCLUDE
+            WHEN MedTxAgent RLIKE 'G.{0,1}(C|L|A){3}G' THEN ''
+            WHEN MedTxAgent RLIKE '(C|L|A){3}GB' THEN ''
+            -- INCLUSION
+            WHEN MedTxAgent RLIKE '(C|L|A){3}G' THEN 'Yes'
+            ELSE ''
+        END AS `CLAG`
+        , CASE
+            WHEN MedTxAgent RLIKE 'G.{0,1}(C|L|A){3}G' THEN 'Yes'
+            ELSE ''
+        END AS `G-CLAG`
+        , CASE
+            -- EXCLUDE
+            WHEN MedTxAgent RLIKE 'G.{0,1}(C|L|A){3}G' THEN ''
+            -- INCLUSION
+            WHEN MedTxAgent RLIKE '(C|L|A){3}GB' THEN 'Yes'
+            ELSE ''
+        END AS `CLAGB`
+        , CASE
+            WHEN MedTxAgent RLIKE '2652'       THEN 'Yes'
+            WHEN MedTxAgent RLIKE 'D.{0,1}MEC' THEN 'Yes'
+            WHEN MedTxAgent RLIKE 'DECI.*MEC'  THEN 'Yes'
+            WHEN MedTxAgent RLIKE 'MEC.*DECI'  THEN 'Yes'
+            ELSE ''
+        END AS `D-MEC`
+        , CASE
+            -- EXCLUDE
+            WHEN MedTxAgent RLIKE 'D.*MEC'   THEN ''
+            -- INCLUSION
+            WHEN MedTxAgent RLIKE 'E.*MEC'   THEN 'Yes'
+            WHEN MedTxAgent RLIKE 'MEC.*SEL' THEN 'Yes'
+            WHEN MedTxAgent RLIKE '1271'     THEN 'Yes'
+            ELSE ''
+        END AS `E-MEC`
+        , CASE
+            -- EXCLUDE
+            WHEN MedTxAgent RLIKE '2652'       THEN ''
+            WHEN MedTxAgent RLIKE 'D.{0,1}MEC' THEN ''
+            WHEN MedTxAgent RLIKE 'DECI.*MEC'  THEN ''
+            WHEN MedTxAgent RLIKE 'MEC.*DECI'  THEN ''
+            WHEN MedTxAgent RLIKE 'E.*MEC'     THEN ''
+            WHEN MedTxAgent RLIKE 'MEC.*SEL'   THEN ''
+            WHEN MedTxAgent RLIKE '1271'       THEN ''
+            -- INCLUSION
+            WHEN MedTxAgent RLIKE 'MEC' THEN 'Yes'
+            ELSE ''
+        END AS `MEC`
+        , CASE
+            WHEN MedTxAgent RLIKE 'DECI.*THIO'      THEN 'Yes'
+            WHEN MedTxAgent RLIKE 'DECI.*6.{0,1}TG' THEN 'Yes'
+            WHEN MedTxAgent RLIKE '6TG.*DECI'       THEN 'Yes'
+            ELSE ''
+        END AS `6TG +DECI`
+        , CASE
+            WHEN MedTxAgent RLIKE '2566'       THEN 'Yes'
+            ELSE ''
+        END AS `2566 (DECI +TOSEDOSTAT)`
+        , CASE
+            WHEN MedTxAgent RLIKE 'AC220'       THEN 'Yes'
+            ELSE ''
+        END AS `AC220`
+        , CASE
+            -- EXCLUDE
+            WHEN MedTxAgent RLIKE 'G.{0,1}(C|L|A){3}G' THEN ''
+            -- INCLUSION
+            WHEN MedTxAgent RLIKE 'G.{0,1}(C|L|A){3}C' THEN 'Yes'
+            WHEN MedTxAgent RLIKE '6562' THEN 'Yes'
+            WHEN MedTxAgent RLIKE '7144' THEN 'Yes'
+            ELSE ''
+        END AS `G-CLAC`
+        , CASE
+            WHEN MedTxAgent RLIKE '131'       THEN 'Yes'
+            WHEN MedTxAgent RLIKE '739'       THEN 'Yes'
+            WHEN MedTxAgent RLIKE '1201'      THEN 'Yes'
+            WHEN MedTxAgent RLIKE '1432'      THEN 'Yes'
+            WHEN MedTxAgent RLIKE '7617'      THEN 'Yes'
+            WHEN MedTxAgent RLIKE '2335'      THEN 'Yes'
+            WHEN MedTxAgent RLIKE '1931'      THEN 'Yes'
+            WHEN MedTxAgent RLIKE '2010'      THEN 'Yes'
+            WHEN MedTxAgent RLIKE '2044'      THEN 'Yes'
+            WHEN MedTxAgent RLIKE '2130'      THEN 'Yes'
+            WHEN MedTxAgent RLIKE '2186'      THEN 'Yes'
+            WHEN MedTxAgent RLIKE '2206'      THEN 'Yes'
+            WHEN MedTxAgent RLIKE '2222'      THEN 'Yes'
+            WHEN MedTxAgent RLIKE '2309'      THEN 'Yes'
+            WHEN MedTxAgent RLIKE '2468'      THEN 'Yes'
+            WHEN MedTxAgent RLIKE '2524'      THEN 'Yes'
+            WHEN MedTxAgent RLIKE 'AC220'     THEN 'Yes'
+            WHEN MedTxAgent RLIKE 'CD45.*131' THEN 'Yes'
+            WHEN MedTxAgent RLIKE 'Y-DOTA'    THEN 'Yes'
+            WHEN MedTxAgent RLIKE 'FLU'       THEN 'Yes'
+            WHEN MedTxAgent RLIKE 'TREO'      THEN 'Yes'
+            WHEN MedTxAgent RLIKE 'CY.BU'     THEN 'Yes'
+            WHEN MedTxAgent RLIKE 'BU.CY'     THEN 'Yes'
+            WHEN MedTxAgent RLIKE 'HCT'       THEN 'Yes'
+            WHEN MedTxAgent RLIKE 'HSCT'      THEN 'Yes'
+            WHEN MedTxAgent RLIKE 'TBI'       THEN 'Yes'
+            ELSE ''
+        END AS `HCT`
+        , CASE
+             -- EXCLUDE
+             WHEN MedTxAgent RLIKE 'G' THEN ''
+             -- INCLUDE
+             WHEN MedTxAgent RLIKE '(C|L|A){3}C' THEN 'Yes'
+             ELSE ''
+        END AS `CLAC`
+        , CASE
+            -- EXCLUDE
+            WHEN MedTxAgent RLIKE 'SORA' THEN ''
+            WHEN MedTxAgent RLIKE 'DECI' THEN ''
+            WHEN MedTxAgent RLIKE 'D{1}-G{1}.*C{1}[LAM]{3}' THEN ''
+            -- INCLUSION
+            WHEN MedTxAgent RLIKE 'G{1}.*C{1}[LAM]{3}' THEN 'Yes'
+            WHEN MedTxAgent RLIKE '2734'               THEN 'Yes'
+            ELSE ''
+        END AS `G-CLAM`
+        , CASE
+            -- INCLUDE
+            WHEN MedTxAgent RLIKE 'DECI'
+            AND  MedTxAgent RLIKE 'G{1}.*C{1}[LAM]{3}' THEN 'Yes'
+            -- EXCLUDE
+            WHEN MedTxAgent RLIKE 'SORA'
+            AND  MedTxAgent RLIKE 'G{1}.*C{1}[LAM]{3}' THEN ''
+            -- INCLUDE
+            WHEN MedTxAgent RLIKE 'D{1}-G{1}.*C{1}[LAM]{3}' THEN 'Yes'
+            ELSE ''
+        END AS `D-GCLAM`
+        , CASE
+            -- DEFAULT EXCLUDE
+            WHEN MedTxAgent RLIKE '(3[[:space:]]{0,1}[+][[:space:]]{0,1}7|7[[:space:]]{0,1}[+][[:space:]]{0,1}3)' THEN 'Yes'
+            WHEN MedTxAgent RLIKE '(3.*[+].*7|7.*[+].*3)'   THEN 'Yes'
+            WHEN MedTxAgent RLIKE '(3.*AND.*7|7.*AND.*3)'   THEN 'Yes'
+            WHEN MedTxAgent RLIKE 'SO106'   THEN 'Yes'
+            ELSE ''
+        END AS `7+3`
+        , CASE
+            WHEN MedTxAgent RLIKE '(2[[:space:]]{0,1}[+][[:space:]]{0,1}5|5[[:space:]]{0,1}[+][[:space:]]{0,1}2)' THEN 'Yes'
+            WHEN MedTxAgent RLIKE '(2.*[+].*5|5.*[+].*2)'   THEN 'Yes'
+            ELSE ''
+        END AS `5+2`
+        , CASE
+            WHEN MedTxAgent RLIKE '2413'      THEN 'Yes'
+            WHEN MedTxAgent RLIKE 'BEND.*IDA' THEN 'Yes'
+            ELSE ''
+        END AS `2413 (BEND-IDA)`
+        , CASE
+            WHEN MedTxAgent RLIKE 'CLO.*LDAC'  THEN 'Yes'
+            WHEN MedTxAgent RLIKE '2302' THEN 'Yes'
+            ELSE ''
+        END AS `2302 (CLOF +LDAC)`
+        , CASE
+            WHEN MedTxAgent RLIKE '2588' THEN 'Yes'
+            ELSE ''
+        END AS `2588 (EPI PRIME)`
+        , CASE
+            WHEN MedTxAgent RLIKE '2674'     THEN 'Yes'
+            WHEN MedTxAgent RLIKE 'IAP'      THEN 'Yes'
+            WHEN MedTxAgent RLIKE 'IA.PRAVA' THEN 'Yes'
+            ELSE ''
+        END AS `2674 (IAP)`
+        , CASE
+            WHEN MedTxAgent RLIKE 'PAD.*1' THEN 'Yes'
+            WHEN MedTxAgent RLIKE '8003' THEN 'Yes'
+            ELSE ''
+        END AS `PAD-1`
+        , CASE
+            WHEN MedTxAgent RLIKE 'PAD.*2' THEN 'Yes'
+            WHEN MedTxAgent RLIKE '9226' THEN 'Yes'
+            ELSE ''
+        END AS `PAD-2`
+        , CASE
+            WHEN MedTxAgent RLIKE 'FLAG.*IDA' THEN 'Yes'
+            ELSE ''
+        END AS `FLAG-IDA`
+        , CASE
+            -- exclude
+            WHEN MedTxAgent RLIKE 'FLAG.*IDA' THEN ''
+            -- include
+            WHEN MedTxAgent RLIKE 'FLAG' THEN 'Yes'
+            ELSE ''
+        END AS `FLAG`
+        , CASE
+            WHEN MedTxAgent RLIKE 'FLAM' THEN 'Yes'
+            ELSE ''
+        END AS `FLAM`
+        , CASE
+            WHEN MedTxAgent RLIKE '2690'      THEN 'Yes'
+            WHEN MedTxAgent RLIKE 'SGN.*CD33' THEN 'Yes'
+            ELSE ''
+        END AS `2690 (SGN-CD33A)`
+        , CASE
+            WHEN  MedTxAgent = '2288'       THEN 'Yes'
+            WHEN  MedTxAgent RLIKE 'VORINO'
+                  AND MedTxAgent RLIKE 'GO' THEN 'Yes'
+            ELSE ''
+        END AS `2288 (VORINOSTAT +GO)`
+        , CASE
+            WHEN  MedTxAgent = '2642'         THEN 'Yes'
+            WHEN  MedTxAgent RLIKE 'CPX.*351' THEN 'Yes'
+            ELSE ''
+        END AS `2642 (CPX-351)`
+        , CASE
+            WHEN  MedTxAgent = '2592'         THEN 'Yes'
+            WHEN  MedTxAgent RLIKE 'HEDGE'    THEN 'Yes'
+            ELSE ''
+        END AS `2592 (HEDGEHOG)`
+        , CASE
+            WHEN  MedTxAgent RLIKE '9019'  THEN 'Yes'
+            WHEN  MedTxAgent RLIKE 'DECI'
+                AND MedTxAgent RLIKE 'ARA' THEN 'Yes'
+            ELSE ''
+        END AS `9019 (DECI +ARA-C)`
+        , CASE
+            WHEN  MedTxAgent RLIKE '9036'  THEN 'Yes'
+            ELSE ''
+        END AS `9036 (MDX-1338/BMS936564)`
+        , CASE
+            WHEN  MedTxAgent RLIKE 'DECI'
+                  AND MedTxAgent NOT RLIKE '[\\+]'
+                  AND MedTxAgent NOT RLIKE 'MEC'   THEN 'Yes'
+            WHEN  MedTxAgent RLIKE 'DACO'
+                  AND MedTxAgent NOT RLIKE '[\\+]'
+                  AND MedTxAgent NOT RLIKE 'MEC'   THEN 'Yes'
+            ELSE ''
+        END AS `DECITABINE`
+        , CASE
+            WHEN  MedTxAgent RLIKE 'AZA.{0,1}'
+                  AND MedTxAgent NOT RLIKE '[\\+]' THEN 'Yes'
+            ELSE ''
+        END AS `AZA`
+        , CASE
+            WHEN  MedTxAgent RLIKE '^GO.*AZA.{0,1}' THEN 'Yes'
+            WHEN  MedTxAgent RLIKE 'AZA.*GO$'       THEN 'Yes'
+            WHEN  MedTxAgent RLIKE 'AZA.*MYLO'      THEN 'Yes'
+            WHEN  MedTxAgent RLIKE 'AZA.*GEM'       THEN 'Yes'
+            ELSE ''
+        END AS `AZA +GO`
+        , CASE
+            WHEN  MedTxAgent RLIKE 'DECI.*GO$'   THEN 'Yes'
+            WHEN  MedTxAgent RLIKE 'DACO.*GO$'   THEN 'Yes'
+            ELSE ''
+        END AS `DECI +GO`
+        , CASE
+            WHEN  MedTxAgent RLIKE '^GO$' THEN 'Yes'
+            ELSE ''
+        END AS `GO`
+        , CASE
+            WHEN  MedTxAgent RLIKE '^HU$'    THEN 'Yes'
+            WHEN  MedTxAgent RLIKE '^HYDRO'  THEN 'Yes'
+            WHEN  MedTxAgent RLIKE '^HYDREA' THEN 'Yes'
+            ELSE ''
+        END AS `HU`
+        , CASE
+            WHEN  MedTxAgent RLIKE '^HIDAC$' THEN 'Yes'
+            WHEN  MedTxAgent RLIKE '^HDAC$' THEN 'Yes'
+            ELSE ''
+        END AS `HIDAC`
+        , CASE
+            WHEN  MedTxAgent RLIKE '^LDAC$' THEN 'Yes'
+            ELSE ''
+        END AS `LDAC`
+        , CASE
+            WHEN  MedTxAgent RLIKE '^SORAFENIB$' THEN 'Yes'
+            ELSE ''
+        END AS `SORAFENIB`
+        , CASE
+            WHEN MedTxAgent RLIKE '^ARA.+C$'      THEN 'Yes'
+            WHEN MedTxAgent RLIKE '^CYTARA'
+                 AND MedTxAgent NOT RLIKE '[\\+]' THEN 'Yes'
+            ELSE ''
+        END AS `ARA-C`
+        FROM protocolcategory.CleanAllAgents
+    GROUP BY MedTxAgent;
+
+UPDATE protocolcategory.CherryPicking
+    SET Intensity = '' ;
+
+UPDATE protocolcategory.CherryPicking
+    SET Categorized = CONCAT(LTRIM(Categorized),',NOT TREATED')
+    WHERE `NOT TREATED` = 'Yes' ;
+
+UPDATE protocolcategory.CherryPicking
+    SET Categorized = CONCAT(LTRIM(Categorized), ',AZA')
+        WHERE `AZA`= 'Yes' ;
+
+UPDATE protocolcategory.CherryPicking
+    SET Categorized = CONCAT(LTRIM(Categorized), ',CLAC')
+        WHERE `CLAC`= 'Yes' ;
+
+UPDATE protocolcategory.CherryPicking
+    SET Categorized = CONCAT(LTRIM(Categorized), ',CLAG')
+        WHERE `CLAG`= 'Yes' ;
+
+UPDATE protocolcategory.CherryPicking
+    SET Categorized = CONCAT(LTRIM(Categorized), ',G-CLAG')
+        WHERE `G-CLAG`= 'Yes' ;
+
+UPDATE protocolcategory.CherryPicking
+    SET Categorized = CONCAT(LTRIM(Categorized), ',CLAGB')
+        WHERE `CLAGB`= 'Yes' ;
+
+
+ UPDATE protocolcategory.CherryPicking
+    SET Categorized = CONCAT(LTRIM(Categorized), ',MICE +GO')
+        WHERE `MICE +GO`= 'Yes' ;
+
+ UPDATE protocolcategory.CherryPicking
+    SET Categorized = CONCAT(LTRIM(Categorized), ',MICE')
+        WHERE `MICE`= 'Yes' ;
+
+UPDATE protocolcategory.CherryPicking
+    SET Categorized = CONCAT(LTRIM(Categorized), ',G-CLAC')
+        WHERE `G-CLAC`= 'Yes' ;
+
+UPDATE protocolcategory.CherryPicking
+    SET Categorized = CONCAT(LTRIM(Categorized), ',G-CLAM')
+        WHERE `G-CLAM`= 'Yes' ;
+
+UPDATE protocolcategory.CherryPicking
+        SET Categorized = CONCAT(LTRIM(Categorized), ',DECITABINE')
+        WHERE `DECITABINE`= 'Yes' ;
+
+UPDATE protocolcategory.CherryPicking
+    SET Categorized = CONCAT(LTRIM(Categorized), ',D-GCLAM')
+        WHERE `D-GCLAM`= 'Yes' ;
+
+UPDATE protocolcategory.CherryPicking
+    SET Categorized = CONCAT(LTRIM(Categorized), ',MEC')
+        WHERE `MEC`= 'Yes' ;
+
+UPDATE protocolcategory.CherryPicking
+    SET Categorized = CONCAT(LTRIM(Categorized), ',D-MEC')
+        WHERE `D-MEC`= 'Yes' ;
+
+UPDATE protocolcategory.CherryPicking
+    SET Categorized = CONCAT(LTRIM(Categorized), ',FLAG-IDA')
+        WHERE `FLAG-IDA`= 'Yes' ;
+
+UPDATE protocolcategory.CherryPicking
+    SET Categorized = CONCAT(LTRIM(Categorized), ',FLAG')
+        WHERE `FLAG`= 'Yes' ;
+
+UPDATE protocolcategory.CherryPicking
+    SET Categorized = CONCAT(LTRIM(Categorized), ',FLAM')
+        WHERE `FLAM`= 'Yes' ;
+
+UPDATE protocolcategory.CherryPicking
+    SET Categorized = CONCAT(LTRIM(Categorized), ',7+3')
+        WHERE `7+3`= 'Yes' ;
+
+UPDATE protocolcategory.CherryPicking
+    SET Categorized = CONCAT(LTRIM(Categorized), ',5+2')
+        WHERE `5+2`= 'Yes' ;
+
+UPDATE protocolcategory.CherryPicking
+    SET Categorized = CONCAT(LTRIM(Categorized), ',2288 (VORINOSTAT +GO)')
+        WHERE `2288 (VORINOSTAT +GO)` = 'Yes' ;
+
+UPDATE protocolcategory.CherryPicking
+    SET Categorized = CONCAT(LTRIM(Categorized), ',2302 (CLOF +LDAC)')
+        WHERE `2302 (CLOF +LDAC)`= 'Yes'  ;
+
+UPDATE protocolcategory.CherryPicking
+    SET Categorized = CONCAT(LTRIM(Categorized), ',2413 (BEND-IDA)')
+        WHERE `2413 (BEND-IDA)`= 'Yes'  ;
+
+UPDATE protocolcategory.CherryPicking
+    SET Categorized = CONCAT(LTRIM(Categorized), ',2588 (EPI PRIME)')
+        WHERE `2588 (EPI PRIME)`= 'Yes'  ;
+
+UPDATE protocolcategory.CherryPicking
+    SET Categorized = CONCAT(LTRIM(Categorized), ',2642 (CPX-351)')
+        WHERE `2642 (CPX-351)` = 'Yes' ;
+
+UPDATE protocolcategory.CherryPicking
+    SET Categorized = CONCAT(LTRIM(Categorized), ',2674 (IAP)')
+        WHERE `2674 (IAP)`= 'Yes'  ;
+
+UPDATE protocolcategory.CherryPicking
+    SET Categorized = CONCAT(LTRIM(Categorized), ',9019 (DECI +ARA-C)')
+        WHERE `9019 (DECI +ARA-C)` = 'Yes' ;
+
+UPDATE protocolcategory.CherryPicking
+    SET Categorized = CONCAT(LTRIM(Categorized), ',9036 (MDX-1338/BMS936564)')
+        WHERE `9036 (MDX-1338/BMS936564)`= 'Yes';
+
+UPDATE protocolcategory.CherryPicking
+    SET Categorized = CONCAT(LTRIM(Categorized), ',2592 (HEDGEHOG)')
+        WHERE `2592 (HEDGEHOG)`= 'Yes';
+
+UPDATE protocolcategory.CherryPicking
+    SET Categorized = CONCAT(LTRIM(Categorized), ',2690 (SGN-CD33A)')
+        WHERE `2690 (SGN-CD33A)`= 'Yes';
+
+UPDATE protocolcategory.CherryPicking
+    SET Categorized = CONCAT(LTRIM(Categorized), ',PAD-1')
+        WHERE `PAD-1`= 'Yes';
+
+UPDATE protocolcategory.CherryPicking
+    SET Categorized = CONCAT(LTRIM(Categorized), ',PAD-2')
+        WHERE `PAD-2`= 'Yes';
+
+UPDATE protocolcategory.CherryPicking
+    SET Categorized = CONCAT(LTRIM(Categorized), ',E-MEC')
+        WHERE `E-MEC`= 'Yes';
+
+UPDATE protocolcategory.CherryPicking
+    SET Categorized = CONCAT(LTRIM(Categorized), ',HCT')
+        WHERE `HCT`= 'Yes';
+
+UPDATE protocolcategory.CherryPicking
+    SET Categorized = CONCAT(LTRIM(Categorized), ',2566 (DECI +TOSEDOSTAT)')
+        WHERE `2566 (DECI +TOSEDOSTAT)`= 'Yes';
+
+UPDATE protocolcategory.CherryPicking
+    SET Categorized = CONCAT(LTRIM(Categorized), ',GO')
+        WHERE `GO`= 'Yes';
+
+UPDATE protocolcategory.CherryPicking
+    SET Categorized = CONCAT(LTRIM(Categorized), ',AZA +GO')
+        WHERE `AZA +GO`= 'Yes';
+
+
+UPDATE protocolcategory.CherryPicking
+    SET Categorized = CONCAT(LTRIM(Categorized), ',DECI +GO')
+        WHERE `DECI +GO`= 'Yes';
+
+UPDATE protocolcategory.CherryPicking
+    SET Categorized = CONCAT(LTRIM(Categorized), ',6TG +DECI')
+        WHERE `6TG +DECI`= 'Yes';
+
+UPDATE protocolcategory.CherryPicking
+    SET Categorized = CONCAT(LTRIM(Categorized), ',HU')
+        WHERE `HU`= 'Yes';
+
+UPDATE protocolcategory.CherryPicking
+    SET Categorized = CONCAT(LTRIM(Categorized), ',LDAC')
+        WHERE `LDAC`= 'Yes';
+
+UPDATE protocolcategory.CherryPicking
+    SET Categorized = CONCAT(LTRIM(Categorized), ',HIDAC')
+        WHERE `HIDAC`= 'Yes';
+
+UPDATE protocolcategory.CherryPicking
+    SET Categorized = CONCAT(LTRIM(Categorized), ',AMG-232')
+        WHERE `AMG-232`= 'Yes';
+
+UPDATE protocolcategory.CherryPicking
+    SET Categorized = CONCAT(LTRIM(Categorized), ',AMG-330')
+        WHERE `AMG-330`= 'Yes';
+
+UPDATE protocolcategory.CherryPicking
+    SET Categorized = CONCAT(LTRIM(Categorized), ',AC220')
+        WHERE `AC220`= 'Yes';
+
+UPDATE protocolcategory.CherryPicking
+    SET Categorized = CONCAT(LTRIM(Categorized), ',ARA-C')
+        WHERE `ARA-C`= 'Yes';
+
+UPDATE protocolcategory.CherryPicking
+    SET Categorized = CONCAT(LTRIM(Categorized), ',SORAFENIB')
+        WHERE `SORAFENIB`= 'Yes';
+
+-- ---------------------------------------------------------------------------
+-- HANDLE DEFAULT AND PAD WITH COMMAS
+-- ---------------------------------------------------------------------------
+UPDATE protocolcategory.CherryPicking
+    SET Categorized = CONCAT(LTRIM(Categorized), ',NOT CATEGORIZED')
+        WHERE `Categorized`= '';
+
+UPDATE protocolcategory.CherryPicking
+    SET Categorized = CONCAT(Categorized,',');
+
+-- ---------------------------------------------------------------------------
+-- SET INTENSITY
+-- ---------------------------------------------------------------------------
+UPDATE protocolcategory.CherryPicking
+    SET Intensity =  CONCAT(Intensity,', High')
+        WHERE
+            CASE
+                WHEN Categorized LIKE '%,2588 (EPI PRIME),%' THEN 1
+                WHEN Categorized LIKE '%,G-CLA,%'            THEN 1
+                WHEN Categorized LIKE '%,G-CLAC,%'           THEN 1
+                WHEN Categorized LIKE '%,G-CLAG,%'           THEN 1
+                WHEN Categorized LIKE '%,G-CLAM,%'           THEN 1
+                WHEN Categorized LIKE '%,CLAG,%'             THEN 1
+                WHEN Categorized LIKE '%,D-GCLAM,%'          THEN 1
+                WHEN Categorized LIKE '%,CLAGB,%'            THEN 1
+                WHEN Categorized LIKE '%,2674 (IAP),%'       THEN 1
+                WHEN Categorized LIKE '%,E-MEC,%'            THEN 1
+                WHEN Categorized LIKE '%,D-MEC,%'            THEN 1
+                WHEN Categorized LIKE '%,MEC,%'              THEN 1
+                WHEN Categorized LIKE '%,FLAG,%'             THEN 1
+                WHEN Categorized LIKE '%,FLAM,%'             THEN 1
+                WHEN Categorized LIKE '%,FLAG-IDA,%'         THEN 1
+                ELSE 0
+            END ;
+
+UPDATE protocolcategory.CherryPicking
+    SET Intensity =  CONCAT(Intensity,', Intermediate')
+        WHERE
+            CASE
+                WHEN Categorized LIKE '%,HIDAC,%' THEN 1
+                WHEN Categorized LIKE '%,5+2,%'   THEN 1
+                WHEN Categorized LIKE '%,7+3,%'   THEN 1
+                ELSE 0
+            END ;
+
+UPDATE protocolcategory.CherryPicking
+    SET Intensity =  CONCAT(Intensity,', Low')
+        WHERE
+            CASE
+                WHEN Categorized LIKE '%,2288 (VORINOSTAT +GO),%'   THEN 1
+                WHEN Categorized LIKE '%,2302 (CLOF +LDAC),%'       THEN 1
+                WHEN Categorized LIKE '%,2566 (DECI +TOSEDOSTAT),%' THEN 1
+                WHEN Categorized LIKE '%,2592 (HEDGEHOG),%'         THEN 1
+                WHEN Categorized LIKE '%,2642 (CPX-351),%'          THEN 1
+                WHEN Categorized LIKE '%,2690 (SGN-CD33A),%'        THEN 1
+                WHEN Categorized LIKE '%,6TG +DECI,%'               THEN 1
+                WHEN Categorized LIKE '%,SORAFENIB,%'               THEN 1
+                WHEN Categorized LIKE '%,9019 (DECI +ARA-C),%'      THEN 1
+                WHEN Categorized LIKE '%,LDAC,%'                    THEN 1
+                ELSE 0 -- 9019 (DECI +ARA-C)
+            END ;
+
+UPDATE protocolcategory.CherryPicking
+    SET Intensity =  CONCAT(Intensity,', HCT')
+        WHERE
+            CASE
+                WHEN Categorized LIKE '%,HCT,%' THEN 1
+                ELSE 0
+            END ;
+
+
+UPDATE protocolcategory.CherryPicking
+    SET Intensity =  CONCAT(Intensity,', Indeterminate')
+        WHERE
+            CASE
+                WHEN Categorized LIKE '%,AZA,%'                       THEN 1
+                WHEN Categorized LIKE '%,DECITABINE,%'                THEN 1
+                WHEN Categorized LIKE '%,DECI,%'                      THEN 1
+                WHEN Categorized LIKE '%,GO,%'                        THEN 1
+                WHEN Categorized LIKE '%,AZA +GO,%'                   THEN 1
+                WHEN Categorized LIKE '%,DECI +GO,%'                  THEN 1
+                WHEN Categorized LIKE '%,2413 (BEND-IDA),%'           THEN 1
+                WHEN Categorized LIKE '%,PAD-1,%'                     THEN 1
+                WHEN Categorized LIKE '%,PAD-2,%'                     THEN 1
+                WHEN Categorized LIKE '%,9036 (MDX-1338/BMS936564),%' THEN 1
+                WHEN Categorized LIKE '%,AMG-330,%'                   THEN 1
+                WHEN Categorized LIKE '%,AMG-232,%'                   THEN 1
+                ELSE 0 --
+            END ;
+
+UPDATE protocolcategory.CherryPicking
+    SET Intensity =  CONCAT(Intensity,', Not Categorized')
+        WHERE
+            CASE
+                WHEN Categorized LIKE '%,NOT CATEGORIZED,%' THEN 1
+                WHEN Categorized LIKE '%,NOT TREATED,%'     THEN 1
+                WHEN Categorized LIKE '%,HU,%'            THEN 1
+                WHEN Categorized LIKE '%,MICE,%'            THEN 1
+                WHEN Categorized LIKE '%,MICE +GO,%'        THEN 1
+                ELSE 0 --
+            END ;
+
+
+UPDATE protocolcategory.CherryPicking
+    SET Intensity =  CONCAT(Intensity,', Dose Dependent')
+        WHERE
+            CASE
+                WHEN Categorized LIKE '%,ARA-C,%' THEN 1
+                ELSE 0 --
+            END ;
+
+UPDATE protocolcategory.CherryPicking
+    SET Intensity = SUBSTR(Intensity,3,30) ;
+
+
+UPDATE protocolcategory.CherryPicking
+    SET Categorized = REPLACE(CONCAT(SUBSTR(Categorized,2,30),'||'),',||','') ;
+
+DROP TABLE IF EXISTS protocolcategory.protocolcategory ;
+CREATE TABLE protocolcategory.protocolcategory
+    SELECT * FROM protocolcategory.CherryPicking;
+
+DROP TABLE IF EXISTS protocolcategory.CherryPicking;
+DROP TABLE IF EXISTS protocolcategory.CleanAllAgents;
+
+DROP TABLE IF EXISTS protocolcategory.protocol_for_amldatabase2;
+CREATE TABLE protocolcategory.protocol_for_amldatabase2
+    SELECT a.UWID
+            , a.ArrivalDate
+            , a.ArrivalDx
+            , a.protocol
+            , a.treatmentstartdate
+            , c.MedTxDate
+            , d.*
+        FROM amldatabase2.pattreatment a
+        LEFT JOIN caisis.vdatasetmedicaltherapy c on a.uwid = c.PtMRN
+            and a.treatmentstartdate = c.medtxdate
+        LEFT JOIN protocolcategory.protocolcategory d on c.medtxagent = d.origmedtxagent ;
+
+ALTER TABLE `protocolcategory`.`protocol_for_amldatabase2`
+    DROP COLUMN `Total`,
+    DROP COLUMN `MedTxAgent`,
+    DROP COLUMN `OrigMedTxAgent`,
+    DROP COLUMN `treatmentstartdate`,
+    CHANGE COLUMN `UWID` `PtMRN` VARCHAR(10) NULL DEFAULT NULL ;
+
+DROP TABLE IF EXISTS protocolcategory.patientprotocol ;
+CREATE TABLE protocolcategory.patientprotocol
+    SELECT b.PtMRN
+        , b.PatientId
+        , b.MedicalTherapyId
+        , b.MedTxDate
+        , b.MedTxAgent AS ORIG
+        , a.*
+        FROM caisis.vdatasetmedicaltherapy b
+        left join protocolcategory.protocolcategory a on a.OrigMedtxagent = b.MedTxAgent ;
+
+ALTER TABLE `protocolcategory`.`patientprotocol`
+    DROP COLUMN `Total`,
+    DROP COLUMN `MedTxAgent`,
+    DROP COLUMN `OrigMedTxAgent`,
+    CHANGE COLUMN `ORIG` `MedTxAgent` TEXT NULL DEFAULT NULL ;

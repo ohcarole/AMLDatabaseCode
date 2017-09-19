@@ -247,8 +247,8 @@ def MainRoutine( cnxdict ):
         outputfile = cnxdict['out_filedir'] + '\\' + cnxdict['out_filename'] + '.' + cnxdict['out_fileext']
         print(outputfile)
 
-    writer.save()
-    writer.close()
+    dowritersave(writer, cnxdict)
+
     return None
 
 

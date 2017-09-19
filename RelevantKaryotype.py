@@ -1,21 +1,21 @@
 from MySQLdbUtils import *
 
-cnxdict = connect_to_mysql_db_prod('relevantlab')
+cnxdict = connect_to_mysql_db_prod('relevantkaryo')
 
-def recreate_patientlist(cnxdict):
+def create_patientlist(cnxdict):
     """
 
     :param cnxdict:
     :return:
     """
     cnxdict['sql'] = """
-        DROP TABLE IF EXISTS temp.patientlist;
-        CREATE TABLE temp.patientlist
+        DROP TABLE IF EXISTS relevantkaryo.patientlist;
+        CREATE TABLE relevantkaryo.patientlist
             SELECT b.*, min(arrivaldate) as arrivaldate
                 FROM amldatabase2.pattreatment
                 LEFT JOIN caisis.vdatasetpatients b ON pattreatment.UWID = b.PtMRN
                 GROUP BY b.PtMRN;
-        ALTER TABLE `temp`.`patientlist`
+        ALTER TABLE `relevantkaryo`.`patientlist`
             ADD INDEX `PatientId`   (`PatientId`   ASC),
             ADD INDEX `PtMRN`       (`PtMRN`(10)   ASC),
             ADD INDEX `ArrivalDate` (`ArrivalDate` ASC);
@@ -24,7 +24,7 @@ def recreate_patientlist(cnxdict):
     return
 
 
-def create_karyolist(cnxdict,writer,allpatients=1):
+def create_karyolist(cnxdict,allpatients=1):
     """
     This program assumes that the temp.patientlist needs to have associated karyotypes
     :param cnxdict:
@@ -33,125 +33,138 @@ def create_karyolist(cnxdict,writer,allpatients=1):
     """
 
     if allpatients == 1:
-        recreate_patientlist(cnxdict)
+        create_patientlist(cnxdict)
 
     # For working on karyotype
     cnxdict['sql'] = """
-        drop table if exists temp.t1;
-        create table temp.t1
-            select a.PatientId, a.PtMRN, a.ArrivalDate
+
+        # creates a table associated with the patient list of all karyo results (after a few steps)
+        # Note that DateObtained comes from the PathNote, whereas PathDate is the date pathology
+        # report was electronically signed.  We default to the date obtained where available
+        # Also sometimes the path result is in the field 'karyo' when coming from SCCACYTO, and in the
+        # field 'PathResult' when coming from migrated or electronically extracted from pathnotes.
+        # the fields are colapsed to the one field 'karyo' in this first query
+        DROP TABLE IF EXISTS relevantkaryo.allkaryo;
+        CREATE TABLE relevantkaryo.allkaryo
+            SELECT a.PatientId
+                    , a.PtMRN
+                    , c.ArrivalDx
+                    , c.Protocol
+                    , c.ResponseDescription
+                    , a.ArrivalDate
+                    , c.TreatmentStartDate
+                    , c.ResponseDate
                     , b.type
-                    , b.DateObtained
-                    , b.PathDate
-                    , a.ArrivalDate as TempDateObtained
                     , CASE
-                            WHEN b.`Karyo` = '' THEN b.PathResult
-                            WHEN b.PathResult = '' THEN b.Karyo
+                        WHEN YEAR(b.DateObtained) = 1900 THEN STR_TO_DATE(b.PathDate, '%Y-%m-%d')
+                        WHEN b.DateObtained IS NULL      THEN STR_TO_DATE(b.PathDate, '%Y-%m-%d')
+                        ELSE STR_TO_DATE(b.DateObtained, '%Y-%m-%d')
+                    END AS DateObtained
+                    , b.PathDate
+                    , CASE
+                            WHEN b.`Karyo`    = '' THEN LTRIM(b.PathResult)
+                            WHEN b.PathResult = '' THEN LTRIM(b.Karyo)
                             ELSE NULL
                         END AS karyo
-                    from temp.patientlist a
-                left join caisis.allkaryo  b on a.ptmrn = b.ptmrn
-                where ( b.karyo <> '' or pathresult <> '' )
-                    and left(b.karyo,3)      <> 'nuc'
-                    and left(b.pathresult,3) <> 'nuc';
+                    FROM relevantkaryo.patientlist a
+                LEFT JOIN caisis.allkaryo  b ON a.ptmrn = b.ptmrn
+                LEFT JOIN amldatabase2.`pattreatment with prev and next arrival` c on a.PtMRN = c.uwid and a.ArrivalDate = c.ArrivalDate
+                WHERE ( b.karyo <> '' OR pathresult <> '' )
+                    AND LEFT(b.karyo,3)      <> 'nuc'
+                    AND LEFT(b.pathresult,3) <> 'nuc';
 
-        update temp.t1 SET TempDateObtained = str_to_Date(DateObtained,'%Y-%m-%d');
-        update temp.t1 SET TempDateObtained = str_to_Date(PathDate,'%Y-%m-%d') WHERE TempDateObtained IS NULL;
-        ALTER TABLE `temp`.`t1`
+        ALTER TABLE `relevantkaryo`.`allkaryo`
             ADD `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY
-            , DROP COLUMN PathDate
-            , DROP COLUMN DateObtained
-            , CHANGE COLUMN `TempDateObtained` `DateObtained` DATETIME NULL DEFAULT NULL ;
+            , CHANGE COLUMN `DateObtained` `DateObtained` DATETIME NULL DEFAULT NULL ;
 
-        drop table if exists temp.t2;
-        create table temp.t2
-            select 'A'
-                    , PatientId
-                    , PtMRN
-                    , ArrivalDate
-                    , max(dateobtained) as DateObtained
-                    , Type
-                    , Karyo
-                from temp.t1
-                where dateobtained <= arrivaldate
-                group by patientid, arrivaldate
-            union
-            select 'B'
-                    , PatientId
-                    , PtMRN
-                    , ArrivalDate
-                    , min(dateobtained) as DateObtained
-                    , Type
-                    , Karyo
-                from temp.t1
-                where dateobtained > arrivaldate
-                group by patientid, arrivaldate
-            ORDER BY PatientId, arrivaldate, dateobtained ;
-        alter table temp.t2 add id int primary key auto_increment;
+        # Removes records that are not karyo results
+        DELETE FROM relevantkaryo.allkaryo WHERE
+            NOT (
+            karyo rlike '^[0-9]{2}'
+            or karyo rlike '^//[0-9]{2}'
+            or karyo rlike '^[0-9]{2}(p|q)'
+            or karyo = 'normal cytogenetics'
+            or karyo = 'normal male karyotype'
+            or karyo = 'normal female karyotype' );
 
-        drop table if exists temp.t3;
-        create table temp.t3
-        Select a.PatientId
-                    , a.PtMRN
-                    , a.ArrivalDate
-                    , a.DateObtained
-                    , b.karyo
-            FROM (select min(id) as TempId
-                        , PatientId
-                        , PtMRN
-                        , ArrivalDate
-                        , min(DateObtained) as DateObtained
-                    from temp.t2
-                    group by PatientId, PtMRN, ArrivalDate ) a
-            LEFT JOIN temp.t2 b
-                on  a.PatientId = b.PatientId
-                and a.DateObtained = b.DateObtained ;
+        # Removes records that are not karyo results
+        DELETE FROM relevantkaryo.allkaryo WHERE
+            karyo rlike '^[0-9]{2}(p|q)';
+
+        # find the first and last pathology report date for each patient
+        DROP TABLE IF EXISTS relevantkaryo.relevantkaryo;
+        CREATE TABLE relevantkaryo.relevantkaryo
+        SELECT a.PatientId
+            , a.PtMRN
+            , a.ArrivalDx
+            , a.Protocol
+            , a.ResponseDescription
+            , a.ArrivalDate
+            , a.TreatmentStartDate
+            , a.ResponseDate
+            , a.Type as ArrivalPathRecordType
+            , a.KaryoAtArrivalDate
+            , a.KaryoAtArrival
+            , b.Type as EarliestPathRecordType
+            , b.EarliestKaryoDate
+            , b.EarliestKaryo
+            , c.Type as ResponsePathRecordType
+            , c.ResponseKaryoDate
+            , c.ResponseKaryo
+            FROM (SELECT 'Arrival Karyo'
+                            , PatientId
+                            , PtMRN
+                            , ArrivalDx
+                            , Protocol
+                            , ResponseDescription
+                            , ArrivalDate
+                            , TreatmentStartDate
+                            , ResponseDate
+                            , Type
+                            , Karyo  AS KaryoAtArrival
+                            , MAX(dateobtained) AS KaryoAtArrivalDate
+                        FROM relevantkaryo.allkaryo
+                        WHERE dateobtained <= treatmentstartdate
+                        GROUP BY patientid, arrivaldate) a
+                    LEFT JOIN ( SELECT 'Earliest Karyo'
+                            , PatientId
+                            , PtMRN
+                            , ArrivalDate
+                            , TreatmentStartDate
+                            , Type
+                            , Karyo  AS EarliestKaryo
+                            , MIN(dateobtained) AS EarliestKaryoDate
+                        FROM relevantkaryo.allkaryo
+                        GROUP BY patientid, arrivaldate ) b
+                        ON a.PatientId = b.PatientId AND a.ArrivalDate = b.ArrivalDate
+                    LEFT JOIN ( SELECT 'Response Karyo'
+                            , PatientId
+                            , PtMRN
+                            , ArrivalDate
+                            , TreatmentStartDate
+                            , Type
+                            , Karyo  AS ResponseKaryo
+                            , MAX(dateobtained) AS ResponseKaryoDate
+                        FROM relevantkaryo.allkaryo
+                        WHERE dateobtained BETWEEN DATE_ADD(treatmentstartdate,INTERVAL +7 DAY)
+                            AND DATE_ADD(responsedate, INTERVAL +14 DAY)
+                        GROUP BY patientid, arrivaldate ) c
+                        ON a.PatientId = c.PatientId AND a.ArrivalDate = c.ArrivalDate
+                    ORDER BY PatientId, arrivaldate ;
+
     """
     dosqlexecute(cnxdict)
-
-    cmd = "select * from temp.t1;"
-    df  = dosqlread(cmd,cnxdict['cnx'])
-    df.to_excel(writer, sheet_name='karyo history detail', index=False)
-
-    cmd = "select * from temp.t3;"
-    df  = dosqlread(cmd,cnxdict['cnx'])
-    df.to_excel(writer, sheet_name='karyosummary', index=False)
-
-
-    # cmd = "select patientid, ptmrn, arrivaldate, dateobtained, karyo from temp.t3 limit 4;"
-    # cmd = "select patientid, ptmrn, karyo from temp.t3 where PtMRN = 'U0108449';"
-    # cmd = """
-    #     SELECT `allkaryo`.`index`,
-    #         `allkaryo`.`ALLKaryoId`,
-    #         `allkaryo`.`Type`,
-    #         `allkaryo`.`PatientId`,
-    #         `allkaryo`.`PtMRN`,
-    #         `allkaryo`.`PathologyId`,
-    #         `allkaryo`.`DateObtained`,
-    #         `allkaryo`.`PathDate`,
-    #         `allkaryo`.`Karyo`,
-    #         `allkaryo`.`PathNum`,
-    #         `allkaryo`.`PathNotes`,
-    #         `allkaryo`.`PathTestId`,
-    #         `allkaryo`.`PathTest`,
-    #         `allkaryo`.`PathResult`
-    #     FROM `caisis`.`allkaryo`
-    #     LIMIT 200;
-    # """
-    # df  = dosqlread(cmd,cnxdict['cnx'])
-    # """
-    #     Experiment with
-    #
-    #     To delimit by a tab you can use the sep argument of to_csv:
-    #
-    #     df.to_csv(file_name, sep='\t')
-    #     To use a specific encoding (e.g. 'utf-8') use the encoding argument:
-    #
-    #     df.to_csv(file_name, sep='\t', encoding='utf-8')
-    #
-    # """
-    # df.to_excel(writer, sheet_name='karyosummary', index=False)
     return None
+
+
+def create_output(cnxdict,writer):
+    cmd = "select * from relevantkaryo.allkaryo;"
+    df = dosqlread(cmd, cnxdict['cnx'])
+    df.to_excel(writer, sheet_name='karyo  detail', index=False)
+
+    cmd = "select * from relevantkaryo.relevantkaryo;"
+    df = dosqlread(cmd, cnxdict['cnx'])
+    df.to_excel(writer, sheet_name='most relevant karyo per patient', index=False)
 
 
 book = load_workbook(cnxdict['out_filepath'])
@@ -159,7 +172,12 @@ writer = pd.ExcelWriter(cnxdict['out_filepath'], engine='openpyxl')
 writer.book = book
 writer.sheets = dict((ws.title, ws) for ws in book.worksheets)
 
-create_karyolist(cnxdict,writer,1)
-writer.save()
-writer.close()
+create_karyolist(cnxdict,1)
+create_output(cnxdict,writer)
+
+
+
+
+dowritersave(writer,cnxdict)
+
 

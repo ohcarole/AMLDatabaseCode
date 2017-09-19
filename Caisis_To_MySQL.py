@@ -13,11 +13,11 @@ from sqlalchemy import create_engine
 
 def putinmysql(df, sql, tbl, engine):
     print(sql)
-    df.to_sql(tbl.lower(), engine, chunksize=1000, if_exists='replace')
+    # df.to_sql(tbl.lower(), engine, chunksize=1000, if_exists='replace')
     try:
         df.to_sql(tbl.lower(), engine, chunksize=1000, if_exists='replace')
     except:
-        print('/*\nSQL Failed\n {}\n*/'.format(sql))
+        print('/*\nFailed to save data to MySQL\n {}\n*/'.format(sql))
 
 
 def get_sccacyto(cnxdict,engine):
@@ -143,12 +143,15 @@ def get_caisis_tables():
         Creatinine
         Hematocrit
         Hemoglobin
+        HotSpot
         LabTestIndex
         Mutation
         Neutrophil
         Platelet
         RBC
         WBC
+        MostRecentLab
+        MostRecentPath
 
         PatientsAccessed
         NewPatientsAccessed
@@ -171,6 +174,12 @@ def get_caisis_tables():
         vDatasetStatus
     """
 
+    # vDatasetCategories
+
+    tbllist = """
+        HotSpot
+    """
+
     print('-- Moving Caisis tables to MySQL')
     for tbl in tbllist.split('\n'):
         tbl = tbl.strip().replace(' ', '_').lower()
@@ -180,26 +189,74 @@ def get_caisis_tables():
             pass
         else:
             tbl = tbl.strip().replace(' ', '_').lower()
-            tempsql = 'SELECT * FROM [WorkDBProd]..[{}]'.format(tbl)
+            tempsql = 'SELECT * FROM [WorkDBProd]..[{}] '.format(tbl)
+            # tempsql = """
+            # SELECT b.RowNum
+            #         , a.[PatientId]
+            #         , [PtMRN]
+            #         , [PathologyId]
+            #         , a.PathTestId
+            #         , [PathDateText]
+            #         , [PathDate]
+            #         , [PathNum]
+            #         , [PathNotes]
+            #         , DateObtained
+            #         , DateObtainedText
+            #         , PathTime
+            #         , PathTest
+            #         , PathResult
+            #         , PathUnits
+            #         , PathNormalRange
+            #         , PathTestNotes
+            #         , PathDataSource
+            #         , PathQuality
+            #         , EnteredBy
+            #         , EnteredTime
+            #         , UpdatedBy
+            #         , UpdatedTime
+            #         , PathMethod
+            #         , PathKaryotype
+            #     FROM [WorkDBProd]..[{}] a
+            #         LEFT JOIN (
+            #             SELECT ROW_NUMBER() OVER(ORDER BY PathTestId ASC) AS RowNum, PathTestId
+            #                 FROM [WorkDBProd]..[vDatasetPathTest] ) b
+            #         ON a.PathTestId = b.PathTestId ;
+            # """.format(tbl)
             print ('-- Create dataframe from caisis table {0}'.format(tbl))
             df = dosqlread(tempsql, cnxdict)
-            try:
-                df['PathResult'].replace([u'\u2026'],  "...", regex=True, inplace=True)
-            except:
-                pass
+            # read_clean_sql(cmd, cnx)
+            # BEGIN Candidate for refactoring and also for a called procedure
+            """
 
-            try:
-                df['MedTxNotes'].replace([u'\u2013'],  "...", regex=True, inplace=True)
-                df['MedTxNotes'].replace([u'\u2019'],  "...", regex=True, inplace=True)
-                df['MedTxNotes'].replace([u'\u2022'],  "...", regex=True, inplace=True)
-                df['MedTxNotes'].replace([u'\u2026'],  "...", regex=True, inplace=True)
-            except: pass
-            try:
-                df['PathNotes'].replace([u'\u2019'],   "'",   regex=True, inplace=True)
-            except: pass
-            try:
-                df['StatusNotes'].replace([u'\u2026'], "...", regex=True, inplace=True)
-            except: pass
+            Some of the tables we are importing from SQL server may contain characters in the latin dataset that
+            cause movement to utf8 in MySQL to fail.  I have added some corrections of the data below for specific
+            fields where that has been an issue.
+
+            This could be refactored at some point to check all characters in all fields in every table for
+            latin to utf8 issues.  For now I am just catching the most common character discrepancies in the
+            fields where they occur.
+            """
+            # try:
+            #     df = cleandataframe(df,'PathResult')
+            # except: pass
+            #
+            # try:
+            #     df = cleandataframe(df,'PathKaryotype')
+            # except: pass
+            #
+            # try:
+            #     df = cleandataframe(df,'MedTxNotes')
+            # except: pass
+            #
+            # try:
+            #     df = cleandataframe(df,'PathNotes')
+            # except: pass
+            #
+            # try:
+            #     df = cleandataframe(df,'StatusNotes')
+            # except: pass
+
+            # END Candidate for refactoring and also for a called procedure
 
             print ('-- Dataframe complete, copy dataframe to MySQL table Caisis.{0}'.format(tbl))
             putinmysql(df, tempsql, tbl, engine)
@@ -217,11 +274,46 @@ def get_patient_list():
     print (mappedpath)
     cnxdict = connect_to_caisisprod(cnxdict)
     writer = pd.ExcelWriter(mappedpath)
-    df = dosqlread('SELECT [PtMRN], [PtLastName], [PtFirstName], [PatientId], [PtBirthDate] FROM [WorkDBProd]..[PatientsAccessed]', cnxdict)
+
+    pi        = 'Elihu Estey'
+    piemail   = 'eestey@seattlecca.org'
+    piaddress = 'Seattle Cancer Care Alliance; 825 Eastlake Ave E; Box G3200'
+    phidownloaded = 'Name,DOB,' \
+                    'Diagnoses and Dates,' \
+                    'Procedures and Dates,' \
+                    'Clinical Protocols and Dates,' \
+                    'Pathology and Dates,' \
+                    'Therapy and Dates,' \
+                    'Lab Tests and Dates,' \
+                    'Comorbidities and Dates,' \
+                    'Encounters and Dates'
+
+    contemail = 'cmshaw@fredhutch.org, gardnerk@seattlecca.org'
+
+    phipurpose = 'AML database'
+
+    sqlstmt = """
+            SELECT [PtMRN]      AS [Patient MRN]
+                , [PatientId]   AS [Patient Id]
+                , [PtFirstName] AS [Patinet Firstname]
+                , [PtLastName]  AS [Patient Lastname]
+                , [PtBirthDate] AS [Patient Birthdate]
+                , '{0}'         AS [PI]
+                , '{1}'         AS [PI Email]
+                , '{2}'         AS [Recipient Address]
+                , '{3}'         AS [Contact Email]
+                , '{4}'         AS [PHI Description]
+                , '{5}'         AS [PHI purpose]
+                , GETDATE()     AS [Date Downloaded]
+                FROM [WorkDBProd]..[PatientsAccessed] ;
+        """.format(pi,piemail, piaddress, contemail,phidownloaded, phipurpose)
+    # print (sqlstmt)
+    df = dosqlread(sqlstmt, cnxdict )
+
     # df = dosqlread('SELECT [PtBirthDate] FROM [WorkDBProd]..[PatientsAccessed]', cnxdict)
     try:
         df.to_excel(writer, sheet_name='Sheet1',index=False)
-        writer.save()
+        dowritersave(writer, cnxdict)
     except:
         filepath = 'File could not be created'
     return filepath
@@ -232,16 +324,18 @@ def build_mysql_caisis():
 
     :return:
     """
-    get_caisis_tables()
+    MsgResp = tkMessageBox.showinfo(title="Email Download Log"
+                                    , message="Send Download Log to Hutch Data Commonwealth (HDC)?"
+                                    , type="yesno")
+    window.wm_withdraw()
+
+    # get_caisis_tables()
     # call_stored_procedure('index_tables')
     filepath = get_patient_list()
 
-    MsgResp = tkMessageBox.showinfo(title="Email Download Log"
-                                    , message="Send Download Log to Center IT?"
-                                    , type="yesno")
-    window.wm_withdraw()
+
     if MsgResp == 'yes':
-        addresslist = ['cmshaw@fhcrc.org','sglick@fredhutch.org']
+        addresslist = ['cmshaw@fhcrc.org','sgglick@fredhutch.org']
     else:
         addresslist = ['cmshaw@fhcrc.org']
     mail(addresslist,

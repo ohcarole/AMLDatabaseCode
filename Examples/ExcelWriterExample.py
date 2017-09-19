@@ -22,7 +22,8 @@ writer.save
 
 tbl = pd.crosstab([df.ptmrn,df.pathdate],[df.pathdate,df.pathresult], margins=True, dropna = False)
 tbl.to_excel(writer, sheet_name='protarr')
-writer.save()
+dowritersave(writer,cnxdict)
+# writer.save()
 #
 # df = pd.read_sql("""
 #          SELECT * FROM hma_201703.hmasummary;
