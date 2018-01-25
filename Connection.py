@@ -22,6 +22,7 @@ def read_db_config( sect, config='J:\Estey_AML\AML Programming\Python\sharedUtil
         , 'sql': ''
         , 'df': {}
         , 'multi': False
+        , 'EchoSQL': False
     }
     if parser.has_section(sect):
         items = parser.items(sect)
@@ -34,8 +35,4 @@ def read_db_config( sect, config='J:\Estey_AML\AML Programming\Python\sharedUtil
 
 
 
-def buildfilepath(cnxdict, filename=''):
-    if filename == '':
-        filename = cnxdict['out_filename']
-    outputfile = cnxdict['out_filedir'] + '\\' + filename + '_' + time.strftime('%Y%m%d') + '.' + cnxdict['out_fileext']
-    return outputfile
+
