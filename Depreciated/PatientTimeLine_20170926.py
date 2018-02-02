@@ -5,15 +5,14 @@ from MessageBox import *
 print(os.path.dirname(os.path.realpath(__file__)))
 from MySQLdbUtils import *
 import sys, re
-from DefineCaisisViews import *
-from PlayGroundData import *
+
 reload(sys)
 
 cnxdict = connect_to_mysql_db_prod('utility')
 
 
 def create_timeline(cnxdict):
-    print('creating timeline')
+
     cnxdict['sql'] = """
         DROP TABLE IF EXISTS caisis.patienttimeline ;
         CREATE TABLE caisis.patienttimeline
@@ -49,12 +48,12 @@ def create_timeline(cnxdict):
         UNION -- TREATMENT/CYCLES
         SELECT
             PtMRN,
-            0,
+            PatientId,
             Event,
             EventDate,
             EventDescription,
             EventResult
-        FROM caisis.v_treatment
+        FROM temp.v_treatment
 
         UNION -- HCT
         SELECT
@@ -202,27 +201,14 @@ def output_timeline(cnxdict):
     df = pd.read_sql("""
         SELECT * FROM caisis.patienttimeline;
     """, cnxdict['cnx'])
-    cleandataframe(df, 'EventResult') # removed uni
+    cleandataframe(df, 'EventResult')
     try:
         df.to_excel(writer, sheet_name='Patient Timeline', index=False)
-    except:
-        pass
-    df = pd.read_sql("""
-        SELECT * FROM caisis.playground;
-    """, cnxdict['cnx'])
-
-    clean_common_df_error_columns(df,get_colnames( cnxdict, sch='caisis', tbl='playground')) # removed uni
-    try:
-        df.to_excel(writer, sheet_name='AML and MDS Playground', index=False)
+        writer.save()
+        writer.close()
     except:
         pass
 
-    dowritersave(writer, cnxdict)
-    return None
-
-
-# create_all_views(cnxdict)
-# create_playground(cnxdict)
-create_timeline(cnxdict)
+#create_timeline(cnxdict)
 output_timeline(cnxdict)
 print(cnxdict['out_filepath'])

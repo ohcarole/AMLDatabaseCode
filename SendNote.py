@@ -8,8 +8,6 @@ import os
 
 account_dict = {'user': 'cmshaw@fhcrc.org', 'pwd': '<a secret>'}
 mail_user = account_dict['user']
-mail_pwd  = account_dict['pwd']
-
 
 
 def mail(to, subject='', text='', attach=None, filepath=None, filedescription=None):
@@ -73,8 +71,6 @@ def mail(to, subject='', text='', attach=None, filepath=None, filedescription=No
    print (retval)
    return retval
 
-
-
 def mail_depreciated(to, subject, text, attach):
    msg = MIMEMultipart()
 
@@ -108,7 +104,8 @@ def mail_depreciated(to, subject, text, attach):
    # Should be mailServer.quit(), but that crashes...
    mailServer.close()
 
-# mail(['cvanderv@fredhutch.org','cmshaw@fhcrc.org'],
-#      "Hello from python!",
-#      "This is a email sent with python",
-#      "french emoticon.jpg")
+
+# mail(to=['kwatabay@fredhutch.org@fredhutch.org','cmshaw@fhcrc.org'],
+#    subject="Hello from python!",
+#    text="This is a email sent with python",
+#    attach="examples\\french emoticon.jpg")

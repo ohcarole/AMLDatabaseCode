@@ -34,28 +34,75 @@ def create_rangetable(cnxdict, writer):
                 group by a.ptmrn, a.statusdate ;
 
 
-        drop view if exists caisis.v_response ;
-        create view caisis.v_response AS
-                select b1.* from caisis.v_responsetypes a1
-                    left join caisis.vdatasetstatus b1
-                        on a1.status like b1.status
-                            and b1.status is not null;
+        # drop view if exists caisis.v_response ;
+        # create view caisis.v_response AS
+        #         select b1.* from caisis.v_responsetypes a1
+        #             left join caisis.vdatasetstatus b1
+        #                 on a1.status like b1.status
+        #                     and b1.status is not null;
 
-        drop view if exists caisis.v_relapse ;
-        create view caisis.v_relapse AS
+
+        DROP VIEW IF EXISTS caisis.v_response;
+        CREATE VIEW caisis.v_response AS
+            SELECT b.PtMRN
+                , '5 RESPONSE' AS Event
+                , statusdate AS EventDate
+                , CONCAT(statusdisease, ': Treatment Response (',`status`,')') AS EventDescription
+                , statusDate AS ResponseDate
+                , `status` AS ResponseDescription
+            FROM caisis.vdatasetstatus a
+            LEFT JOIN caisis.v_arrival_with_prev_next b ON a.PtMRN = b.PtMRN
+            WHERE statusdisease LIKE '%AML%'
+                    AND (`status` LIKE '%CR%'
+                    OR `status` LIKE '%death%'
+                    OR `status` = 'PR'
+                    OR `status` LIKE '%resist%')
+            GROUP BY a.PtMRN, a.statusdate;
+        DROP TABLE IF EXISTS temp.v_response;
+        CREATE TABLE temp.v_response SELECT * FROM caisis.v_response;
+        ALTER TABLE `temp`.`v_response`
+            ADD INDEX `PtMRN` (`PtMRN`(10) ASC);
+
+
+        # drop view if exists caisis.v_relapse ;
+        # create view caisis.v_relapse AS
+        #     SELECT ptmrn
+        #     , PatientId
+        #     , status
+        #     , statusdate as relapsedate
+        #     , statusdisease as arrivaldx
+        #     FROM
+        #         caisis.vdatasetstatus
+        #     WHERE
+        #         status LIKE '%rel%'
+        #         and (upper(statusdisease) rlike 'A(M|P)L' or upper(statusdisease) rlike 'MDS')
+        #     order by ptmrn, statusdate;
+
+        DROP VIEW IF EXISTS caisis.v_relapse ;
+        CREATE VIEW caisis.v_relapse AS
             SELECT ptmrn
             , PatientId
-            , status
-            , statusdate as relapsedate
-            , statusdisease as arrivaldx
+            , '7 RELAPSE' as Event
+            , statusdate AS EventDate
+            , concat(statusdisease,': ',status) AS EventDescription
+            , status AS RelapseDescription
+            , statusdate AS relapsedate
+            , statusdisease AS arrivaldx
             FROM
                 caisis.vdatasetstatus
             WHERE
                 status LIKE '%rel%'
-                and (upper(statusdisease) rlike 'A(M|P)L' or upper(statusdisease) rlike 'MDS')
-            order by ptmrn, statusdate;
+                AND (UPPER(statusdisease) RLIKE 'A(M|P)L' OR UPPER(statusdisease) RLIKE 'MDS')
+            ORDER BY ptmrn, statusdate;
+        DROP TABLE IF EXISTS temp.v_relapse ;
+        CREATE TABLE temp.v_relapse AS
+            SELECT * FROM caisis.v_relapse;
+        ALTER TABLE `temp`.`v_relapse`
+            ADD INDEX `PtMRN` (`PtMRN`(10) ASC),
+            ADD INDEX `ArrivalDx` (`ArrivalDx` (30) ASC);
+
     """
-    # dosqlexecute(cnxdict) # normally do not need to recreate views
+    dosqlexecute(cnxdict, EchoSQL=True) # normally do not need to recreate views
 
     cnxdict['sql'] = """
         # find all arrivals associated with any subsequent response
@@ -70,7 +117,7 @@ def create_rangetable(cnxdict, writer):
             , b.status as responsedescription
             , timestampdiff(day,a.statusdate, b.statusdate) as daysarrivetoresponse
             , a.nextarrivaldate
-            from caisis.v_arrival_with_next a
+            from caisis.v_arrival_with_prev_next a
             left join caisis.v_response b
             ON a.ptmrn = b.ptmrn
                 and a.statusdisease = b.statusdisease

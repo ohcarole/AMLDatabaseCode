@@ -258,7 +258,7 @@ def get_writer(cnxdict):
         , message="""
         Add to existing workbook 'relevantlab.xlsx'?
         Note that if adding to the lab workbook,
-        the program to produce the lab workbook, 'RelevantTest.py'
+        the program to produce the lab workbook, 'RelevantTest'
         must be run first.
         """
         , type="yesnocancel")

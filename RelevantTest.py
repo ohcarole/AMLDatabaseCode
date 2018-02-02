@@ -198,6 +198,7 @@ def create_arrival_lab_summary(cnxdict,cmd,joincmd,writer):
 
 
 def MainRoutine( cnxdict ):
+    print(cnxdict['out_filepath'])
     book = load_workbook(cnxdict['out_filepath'])
     writer = pd.ExcelWriter(cnxdict['out_filepath'], engine='openpyxl')
     writer.book = book
@@ -220,11 +221,11 @@ def MainRoutine( cnxdict ):
         keepongoing = 'no'
 
     if keepongoing == 'yes':
-        lablist = ('albumin','creatinine','hematocrit','hemoglobin','neutrophil','rbc','wbc','platelet','v_blast', 'v_unclassified')
+        lablist = ('ldh',)
         for labtest in lablist:
             print('Creating temp table for {}'.format(labtest))
             create_temp_lab_table(cnxdict,labtest,writer)
-        lablist = ('albumin','creatinine','hematocrit','hemoglobin','neutrophil','rbc','wbc','platelet','v_blast', 'v_unclassified')
+        lablist = ('albumin','creatinine','hematocrit','hemoglobin','ldh','neutrophil','rbc','wbc','platelet','v_blast', 'v_unclassified')
         cmd     = ''
         joincmd = ''
         tblnum=0

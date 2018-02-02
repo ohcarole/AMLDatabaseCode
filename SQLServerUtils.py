@@ -20,6 +20,7 @@ def connect_to_caisisprod(cnxdict):
 
     try:
         print ('-- About to Connect')
+        print (constring)
         con = pyodbc.connect(constring)
         print ('-- Connected to {}'.format(cnxdict['database']))
     except Exception as ErrVal:

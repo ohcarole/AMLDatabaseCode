@@ -41,6 +41,10 @@ def get_standard_lab_list():
              , 'outtbl': 'rbc'
              , 'colnm':  'rbc'},
 
+            {  'lab':    'ldh'
+             , 'outtbl': 'ldh'
+             , 'colnm':  'ldh'},
+
             {  'lab':    'wbc'
              , 'outtbl': 'wbc'
              , 'colnm':  'wbc'},
@@ -79,7 +83,7 @@ def create_rangetable():
             CREATE TABLE temp.t1
                 SELECT * FROM temp.rangetable;
             ALTER TABLE `temp`.`t1`
-                ADD INDEX `UWID`        (`UWID`(10) ASC),
+                ADD INDEX `PtMRN`        (`PtMRN`(10) ASC),
                 ADD INDEX `ArrivalDate` (`ArrivalDate` ASC);
         """
         dosqlexecute(cnxdict)
@@ -93,24 +97,32 @@ def create_rangetable():
         -- Create range table
         DROP TABLE IF EXISTS temp.t1 ;
         CREATE TABLE temp.t1
-            SELECT t0.PtMRN, t0.PatientId, UWID, ArrivalDx, Protocol, Regimen, Wildcard, ResponseDescription
+        SELECT t0.PtMRN, t0.PatientId, UWID, pattreatment.ArrivalDx, Protocol, Regimen, Wildcard, pattreatment.ResponseDescription
                 , AMLDxDate
-                , ArrivalDate
+                , pattreatment.ArrivalDate
                 , TreatmentStartDate
-                , ResponseDate
-                -- Arrival
-                , 'ARRIVAL' AS Type
+                , pattreatment.ResponseDate
+                , RelapseDate
+                -- Diagnosis
+                , '1 DIAGNOSIS' AS Type
                 , CASE
-                    WHEN ArrivalDate IS NULL THEN NULL
-                    WHEN AMLDxDate > date_add(ArrivalDate, INTERVAL -35 DAY) THEN date_add(AMLDxDate, INTERVAL -5 DAY) -- Since the patient was diagnosed not that long ago, look at dx values as well as arrival values
-                    ELSE date_add(ArrivalDate, INTERVAL -35 DAY)
+                    WHEN AMLDxDate IS NULL THEN NULL
+                    ELSE date_add(AMLDxDate, INTERVAL -35 DAY)
                 END AS StartDateRange
-                , ArrivalDate AS TargetDate
+
                 , CASE
-                    WHEN TreatmentStartDate IS NULL THEN NULL
-                    ELSE TreatmentStartDate
+                    WHEN AMLDxDate IS NULL THEN NULL
+                    ELSE date_add(AMLDxDate, INTERVAL -35 DAY)
+                END AS TargetDate
+
+                , CASE
+                    WHEN AMLDxDate IS NULL THEN NULL
+                    ELSE date_add(AMLDxDate, INTERVAL 60 DAY)
                 END AS EndDateRange
+
                 FROM amldatabase2.pattreatment
+                LEFT JOIN relevantrelapse.arrivalrelapse
+                    ON arrivalrelapse.PtMRN = pattreatment.UWID and arrivalrelapse.arrivaldate = pattreatment.arrivaldate
                 LEFT JOIN temp.t0 on t0.PtMRN = pattreatment.UWID
                 LEFT JOIN (SELECT WildCard
                     , CASE
@@ -121,18 +133,54 @@ def create_rangetable():
                         ELSE druglist
                     END AS Regimen
                     , OriginalProtocol
-                    FROM temp.protocollist ) as pl on pattreatment.Protocol = pl.OriginalProtocol
+                    FROM protocollist.protocollist ) as pl on pattreatment.Protocol = pl.OriginalProtocol
                 WHERE UWID IS NOT NULL
                 GROUP BY UWID, ArrivalDate
             UNION
-            SELECT t0.PtMRN, t0.PatientId, UWID, ArrivalDx, Protocol, Regimen, Wildcard, ResponseDescription
+        SELECT t0.PtMRN, t0.PatientId, UWID, pattreatment.ArrivalDx, Protocol, Regimen, Wildcard, pattreatment.ResponseDescription
                 , AMLDxDate
-                , ArrivalDate
+                , pattreatment.ArrivalDate
                 , TreatmentStartDate
-                , ResponseDate
+                , pattreatment.ResponseDate
+                , RelapseDate
                 -- Arrival
-                , 'TREATMENT' AS Type
-                , ArrivalDate AS StartDateRange
+                , '2 ARRIVAL' AS Type
+                , CASE
+                    WHEN pattreatment.ArrivalDate IS NULL THEN NULL
+                    WHEN AMLDxDate > date_add(pattreatment.ArrivalDate, INTERVAL -35 DAY) THEN date_add(AMLDxDate, INTERVAL -5 DAY) -- Since the patient was diagnosed not that long ago, look at dx values as well as arrival values
+                    ELSE date_add(pattreatment.ArrivalDate, INTERVAL -35 DAY)
+                END AS StartDateRange
+                , pattreatment.ArrivalDate AS TargetDate
+                , CASE
+                    WHEN TreatmentStartDate IS NULL THEN NULL
+                    ELSE TreatmentStartDate
+                END AS EndDateRange
+                FROM amldatabase2.pattreatment
+                LEFT JOIN relevantrelapse.arrivalrelapse
+                    ON arrivalrelapse.PtMRN = pattreatment.UWID and arrivalrelapse.arrivaldate = pattreatment.arrivaldate
+                LEFT JOIN temp.t0 on t0.PtMRN = pattreatment.UWID
+                LEFT JOIN (SELECT WildCard
+                    , CASE
+                        WHEN multiregimen  <> '' THEN concat(multiregimen, druglist)
+                        WHEN singleregimen <> '' THEN concat(singleregimen,druglist)
+                        WHEN noninduction  <> '' THEN concat(noninduction, druglist)
+                        WHEN mapto LIKE '%HCT%'  THEN 'HCT'
+                        ELSE druglist
+                    END AS Regimen
+                    , OriginalProtocol
+                    FROM protocollist.protocollist ) as pl on pattreatment.Protocol = pl.OriginalProtocol
+                WHERE UWID IS NOT NULL
+                GROUP BY UWID, ArrivalDate
+            UNION
+        SELECT t0.PtMRN, t0.PatientId, UWID, pattreatment.ArrivalDx, Protocol, Regimen, Wildcard, pattreatment.ResponseDescription
+                , AMLDxDate
+                , pattreatment.ArrivalDate
+                , TreatmentStartDate
+                , pattreatment.ResponseDate
+                , RelapseDate
+                -- Treatment
+                , '3 TREATMENT' AS Type
+                , pattreatment.ArrivalDate AS StartDateRange
                 , CASE
                     WHEN TreatmentStartDate IS NULL THEN NULL
                     ELSE date_add(TreatmentStartDate, INTERVAL -1 DAY)
@@ -142,6 +190,8 @@ def create_rangetable():
                     ELSE date_add(TreatmentStartDate, INTERVAL +2 DAY)
                 END AS EndDateRange
                 FROM amldatabase2.pattreatment
+                LEFT JOIN relevantrelapse.arrivalrelapse
+                    ON arrivalrelapse.PtMRN = pattreatment.UWID and arrivalrelapse.arrivaldate = pattreatment.arrivaldate
                 LEFT JOIN temp.t0 on t0.PtMRN = pattreatment.UWID
                 LEFT JOIN (SELECT WildCard
                     , CASE
@@ -152,27 +202,30 @@ def create_rangetable():
                         ELSE druglist
                     END AS Regimen
                     , OriginalProtocol
-                    FROM temp.protocollist ) as pl on pattreatment.Protocol = pl.OriginalProtocol
+                    FROM protocollist.protocollist ) as pl on pattreatment.Protocol = pl.OriginalProtocol
                 WHERE UWID IS NOT NULL
                 GROUP BY UWID, ArrivalDate
             UNION
-            SELECT t0.PtMRN, t0.PatientId, UWID, ArrivalDx, Protocol, Regimen, Wildcard, ResponseDescription
+        SELECT t0.PtMRN, t0.PatientId, UWID, pattreatment.ArrivalDx, Protocol, Regimen, Wildcard, pattreatment.ResponseDescription
                 , AMLDxDate
-                , ArrivalDate
+                , pattreatment.ArrivalDate
                 , TreatmentStartDate
-                , ResponseDate
-                -- Arrival
-                , 'RESPONSE' AS Type
+                , pattreatment.ResponseDate
+                , RelapseDate
+                -- Response
+                , '4 RESPONSE' AS Type
                 , CASE
-                    WHEN ResponseDate IS NULL THEN NULL
-                    ELSE date_add(ResponseDate, INTERVAL -14 DAY)
+                    WHEN pattreatment.ResponseDate IS NULL THEN NULL
+                    ELSE date_add(pattreatment.ResponseDate, INTERVAL -14 DAY)
                 END AS StartDateRange
-                , ResponseDate AS TargetDate
+                , pattreatment.ResponseDate AS TargetDate
                 , CASE
-                    WHEN ResponseDate IS NULL THEN NULL
-                    ELSE date_add(ResponseDate, INTERVAL +14 DAY)
+                    WHEN pattreatment.ResponseDate IS NULL THEN NULL
+                    ELSE date_add(pattreatment.ResponseDate, INTERVAL +14 DAY)
                 END AS EndDateRange
                 FROM amldatabase2.pattreatment
+                LEFT JOIN relevantrelapse.arrivalrelapse
+                    ON arrivalrelapse.PtMRN = pattreatment.UWID and arrivalrelapse.arrivaldate = pattreatment.arrivaldate
                 LEFT JOIN temp.t0 on t0.PtMRN = pattreatment.UWID
                 LEFT JOIN (SELECT WildCard
                     , CASE
@@ -183,10 +236,48 @@ def create_rangetable():
                         ELSE druglist
                     END AS Regimen
                     , OriginalProtocol
-                    FROM temp.protocollist ) as pl on pattreatment.Protocol = pl.OriginalProtocol
+                    FROM protocollist.protocollist ) as pl on pattreatment.Protocol = pl.OriginalProtocol
                 WHERE UWID IS NOT NULL
                 GROUP BY UWID, ArrivalDate
-            ORDER BY UWID, ArrivalDate, TYPE;
+            UNION
+        SELECT t0.PtMRN, t0.PatientId, UWID, pattreatment.ArrivalDx, Protocol, Regimen, Wildcard, pattreatment.ResponseDescription
+                , AMLDxDate
+                , pattreatment.ArrivalDate
+                , TreatmentStartDate
+                , pattreatment.ResponseDate
+                , RelapseDate
+                -- Relapse
+                , '5 RELAPSE' AS Type
+                , CASE
+                    WHEN RelapseDate IS NULL THEN NULL
+                    ELSE date_add(RelapseDate, INTERVAL 0 DAY)
+                END AS StartDateRange
+                , RelapseDate AS TargetDate
+                , CASE
+                    WHEN RelapseDate IS NULL THEN NULL
+                    ELSE date_add(RelapseDate, INTERVAL 5 DAY)
+                END AS EndDateRange
+                FROM relevantrelapse.arrivalrelapse
+                LEFT JOIN amldatabase2.pattreatment
+                    ON arrivalrelapse.PtMRN = pattreatment.UWID and arrivalrelapse.arrivaldate = pattreatment.arrivaldate
+                LEFT JOIN temp.t0 on t0.PtMRN = pattreatment.UWID
+                LEFT JOIN (SELECT WildCard
+                    , CASE
+                        WHEN multiregimen  <> '' THEN concat(multiregimen, druglist)
+                        WHEN singleregimen <> '' THEN concat(singleregimen,druglist)
+                        WHEN noninduction  <> '' THEN concat(noninduction, druglist)
+                        WHEN mapto LIKE '%HCT%'  THEN 'HCT'
+                        ELSE druglist
+                    END AS Regimen
+                    , OriginalProtocol
+                    FROM protocollist.protocollist ) as pl on pattreatment.Protocol = pl.OriginalProtocol
+                WHERE UWID IS NOT NULL
+                GROUP BY UWID, ArrivalDate
+             ORDER BY UWID, ArrivalDate
+                , CASE
+                    WHEN StartDateRange IS NULL THEN TYPE
+                    ELSE date_format(StartDateRange,"%Y%m%d")
+                END ;
         ALTER TABLE `temp`.`t1`
             ADD INDEX `UWID`        (`UWID`(10) ASC),
             ADD INDEX `ArrivalDate` (`ArrivalDate` ASC);
@@ -233,7 +324,7 @@ def create_temp_lab_table(labtest):
 
         DROP TABLE IF EXISTS temp.{0} ;
         CREATE TABLE temp.{0}
-            SELECT UWID, PtMRN, PatientId
+            SELECT PtMRN, PatientId
                     , ArrivalDate
                     , TargetDate
                     , min(DaysFromTarget) as DaysFromTarget
@@ -242,11 +333,10 @@ def create_temp_lab_table(labtest):
                     , LabResult
                     , LabUnits
                 FROM temp.t3
-                GROUP BY UWID, TargetDate, type ;
+                GROUP BY PtMRN, TargetDate, type ;
         ALTER TABLE `temp`.`{0}`
             ADD INDEX `PatientId`   (`PatientId`   ASC),
             ADD INDEX `PtMRN`       (`PtMRN`(10)   ASC),
-            ADD INDEX `UWID`        (`UWID`(10)    ASC),
             ADD INDEX `LabDate`     (`LabDate`     ASC),
             ADD INDEX `ArrivalDate` (`ArrivalDate` ASC);
     """.format(labtest['outtbl'],labtest['lab'])
@@ -259,7 +349,7 @@ def create_lab_summary_table(cmd,joincmd):
     cnxdict['sql'] = """
         DROP TABLE IF EXISTS temp.labsummary;
         CREATE TABLE temp.labsummary
-            SELECT t0.UWID, t0.PtMRN, t0.PatientId
+            SELECT t0.PtMRN, t0.PatientId
                 , t0.ArrivalDx
                 , t0.Protocol
                 , t0.Regimen
@@ -291,15 +381,14 @@ def create_lab_summary(lablist, timepointlist):
             """.format('tbl_' + str(tblnum), timepoint, labtest['colnm'])
 
             joincmd = joincmd + """LEFT JOIN temp.{3} {0}
-                    ON t0.UWID = {0}.UWID AND t0.ArrivalDate = {0}.ArrivalDate AND left({0}.type,{2}) = '{1}'
+                    ON t0.PtMRN = {0}.PtMRN AND t0.ArrivalDate = {0}.ArrivalDate AND left({0}.type,{2}) = '{1}'
             """.format('tbl_' + str(tblnum), timepoint.upper(), len(timepoint), labtest['outtbl'])
     create_lab_summary_table(cmd, joincmd)
 
 
 
 def create_lab_tables(lablist='',timepointlist=''):
-    cnxdict = connect_to_mysql_db_prod('utility')
-
+    print('Note that this takes a really LONG time when completed for the entire population ... be patient!!!')
     for labtest in lablist:
         print('Creating temp table for {0}'.format(labtest['lab']))
         create_temp_lab_table(labtest)
@@ -315,16 +404,19 @@ def MainRoutine():
             'arrival'
             , 'treatment'
             , 'response' )
-        create_lab_tables(lablist, timepointlist)
+    create_lab_tables(lablist, timepointlist)
     return None
+
+def Create_RangeTable_Output():
+    create_rangetable()
+    cnxdict = connect_to_mysql_db_prod('utility')
+    writer = pd.ExcelWriter(cnxdict['out_filepath'], datetime_format='mm/dd/yyyy')
+    df = pd.read_sql("""
+        SELECT * FROM temp.t1;
+    """, cnxdict['cnx'])
+    df.to_excel(writer, sheet_name='Range Table', index=False)
+
 
 
 # MainRoutineResult = MainRoutine()
-#
-# create_rangetable()
-# lablist = get_standard_lab_list()
-# timepointlist = (
-#     'arrival'
-#     , 'treatment'
-#     , 'response')
-# create_lab_tables(lablist='',timepointlist='')
+# Create_RangeTable_Output() # just a quick look at the ranges defined

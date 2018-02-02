@@ -7,7 +7,7 @@ from openpyxl import load_workbook
 from Connection import *
 import time
 reload(sys)
-from SendNote import mail
+# from SendNote import mail
 from sqlalchemy import create_engine
 
 sys.setdefaultencoding('utf8')

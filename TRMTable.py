@@ -15,10 +15,11 @@ def CreateFirstMedicalTherapyAfterArrival(cnxdict):
     # Find the first treatment for each arrival in two steps, the table temp.temp helps build temp.firsttxdate
     DROP TABLE IF EXISTS Temp.Temp ;
     CREATE TABLE Temp.Temp
-        SELECT Status.PtMRN, Status.StatusDate, MIN(Protocol.MedTxDate) AS MedTxDate
+        SELECT Status.PtMRN, status.PatientId, Status.StatusDate, MIN(Protocol.MedTxDate) AS MedTxDate
             FROM (
                 SELECT DISTINCT
                     PtMRN
+                    , PatientId
                     , StatusDate
                     , statusDisease
                     , Status
@@ -27,13 +28,14 @@ def CreateFirstMedicalTherapyAfterArrival(cnxdict):
             LEFT JOIN (
                 SELECT DISTINCT
                     PtMRN
+                    , PatientId
                     , MedTxDate
                     , MedTxAgent
                     , Categorized
                     , Intensity
                     , Wildcard
                 FROM ProtocolCategory.PatientProtocol ) as Protocol
-            ON Protocol.ptmrn = status.PtMRN AND  Status.StatusDate < Protocol.MedTxDate
+            ON Protocol.ptmrn = status.PtMRN AND date_add(Status.StatusDate, INTERVAl -3 DAY) and Protocol.MedTxDate
             GROUP BY Status.PtMRN, Status.StatusDate ;
 
     DROP TABLE IF EXISTS Temp.FirstTxDate ;
@@ -53,6 +55,7 @@ def ArrivalTRM_GCLAM():
     CREATE TABLE Temp.Temp2_GCLAM
         SELECT
             Status.PtMRN
+            , Status.PatientId
             , Status.Status
             , Status.StatusDisease
             , Status.StatusDate
@@ -208,6 +211,7 @@ def ArrivalTRM_GCLAM():
             FROM (
                 SELECT DISTINCT
                     PtMRN
+                    , PatientId
                     , StatusDate
                     , statusDisease
                     , Status
@@ -220,6 +224,7 @@ def ArrivalTRM_GCLAM():
             LEFT JOIN (
                 SELECT DISTINCT
                     PtMRN
+                    , PatientId
                     , MedTxDate
                     , Categorized
                     , Intensity
@@ -235,6 +240,7 @@ def ArrivalTRM_GCLAM():
                     and `labsummary`.`TreatmentStartDate` = FirstTxDate.MedTxDate
             GROUP BY
                 Status.PtMRN
+                , Status.PatientId
                 , Status.Status
                 , Status.StatusDisease
                 , Status.StatusDate
@@ -276,6 +282,7 @@ def ArrivalTRM_GCLAM():
     DROP TABLE IF EXISTS Temp.ArrivalTRM_GCLAM;
     CREATE TABLE Temp.ArrivalTRM_GCLAM
         SELECT a.`PtMRN`
+            , a.`PatientId`
             , a.`Status`
             , a.`StatusDisease`
             , a.`StatusDate`
@@ -450,12 +457,14 @@ def ArrivalTRM_GCLAM():
     dosqlexecute(cnxdict)
 
 
-def ArrivalTRM():
+def ArrivalTRM_ForYlinne(cnxdict):
+
     cnxdict['sql'] = """
     DROP TABLE IF EXISTS Temp.Temp2 ;
     CREATE TABLE Temp.Temp2
     SELECT
             Status.PtMRN
+            , Status.PatientId
             , Status.Status
             , Status.StatusDisease
             , Status.StatusDate
@@ -509,7 +518,7 @@ def ArrivalTRM():
             , vdatasetpatients.PtGender
             , timestampdiff(year,vdatasetpatients.PtBirthDate,Protocol.MedTxDate) as AgeAtTreatmentStart
             , `labsummary`.`ResponseDescription`
-            , `labsummary`.`ArrivalDate`
+            , Status.StatusDate AS `ArrivalDate`
             , `labsummary`.`TreatmentStartDate`
             , `labsummary`.`ResponseDate`
             , v_secondary.secondary
@@ -652,6 +661,7 @@ def ArrivalTRM():
             FROM (
                 SELECT DISTINCT
                     PtMRN
+                    , PatientId
                     , StatusDate
                     , statusDisease
                     , Status
@@ -664,6 +674,7 @@ def ArrivalTRM():
             LEFT JOIN (
                 SELECT DISTINCT
                     PtMRN
+                    , PatientId
                     , MedTxDate
                     , Categorized
                     , Intensity
@@ -719,6 +730,7 @@ def ArrivalTRM():
     DROP TABLE IF EXISTS Temp.ArrivalTRM;
     CREATE TABLE Temp.ArrivalTRM
         SELECT a.`PtMRN`
+            , a.`PatientId`
             , a.`Status`
             , a.`StatusDisease`
             , a.`StatusDate`
@@ -730,7 +742,7 @@ def ArrivalTRM():
             , a.`PtBirthDate`
             , a.`PtGender`
             , a.`ResponseDescription`
-            , a.`ArrivalDate`
+            , a.`StatusDate` as `ArrivalDate`
             , a.`TreatmentStartDate`
             , a.`ResponseDate`
 
@@ -879,16 +891,724 @@ def ArrivalTRM():
             WHEN `TRM_Version1 (Paper)`      >= 60              THEN 7
             ELSE ''
         END;
+
+    DROP TABLE IF EXISTS caisis.ArrivalTRM;
+    CREATE TABLE caisis.ArrivalTRM SELECT * FROM temp.ArrivalTRM;
+
+    DELETE FROM temp.ArrivalTRM
+        WHERE PtMRN NOT IN  ('U0458051'
+          , 'U0698876'
+          , 'U0800727'
+          , 'U0817252'
+          , 'U0868519'
+          , 'U0974020'
+          , 'U1173533'
+          , 'U1178074'
+          , 'U1188252'
+          , 'U2028987'
+          , 'U2052524'
+          , 'U2060155'
+          , 'U2115037'
+          , 'U2156325'
+          , 'U2179018'
+          , 'U2189274'
+          , 'U2218915'
+          , 'U2227603'
+          , 'U2246550'
+          , 'U2255610'
+          , 'U2271406'
+          , 'U2272138'
+          , 'U2274859'
+          , 'U2281530'
+          , 'U2297253'
+          , 'U2322661'
+          , 'U2333780'
+          , 'U2351000'
+          , 'U2368130'
+          , 'U2368733'
+          , 'U2375147'
+          , 'U2378203'
+          , 'U2409251'
+          , 'U2416366'
+          , 'U2423797'
+          , 'U2429269'
+          , 'U2437442'
+          , 'U2460956'
+          , 'U2477732'
+          , 'U2501601'
+          , 'U2509306'
+          , 'U2515202'
+          , 'U2521929'
+          , 'U2524799'
+          , 'U2537293'
+          , 'U2541303'
+          , 'U2542168'
+          , 'U2542179'
+          , 'U2554796'
+          , 'U2560984'
+          , 'U2562783'
+          , 'U2563991'
+          , 'U2564956'
+          , 'U2573622'
+          , 'U2585877'
+          , 'U2585885'
+          , 'U2592438'
+          , 'U2596143'
+          , 'U2605660'
+          , 'U2605671'
+          , 'U2605676'
+          , 'U2616497'
+          , 'U2625293'
+          , 'U2626037'
+          , 'U2628588'
+          , 'U2629586'
+          , 'U2631335'
+          , 'U2631363'
+          , 'U2631376'
+          , 'U2631381'
+          , 'U2632910'
+          , 'U2634120'
+          , 'U2635020'
+          , 'U2635052'
+          , 'U2635054'
+          , 'U2637232'
+          , 'U2639545'
+          , 'U2640007'
+          , 'U2640592'
+          , 'U2645024'
+          , 'U2650398'
+          , 'U2650592'
+          , 'U2651732'
+          , 'U2651748'
+          , 'U2651753'
+          , 'U2651754'
+          , 'U2651761'
+          , 'U2655501'
+          , 'U2658001'
+          , 'U2658020'
+          , 'U2658411'
+          , 'U2664548'
+          , 'U2664582'
+          , 'U2664623'
+          , 'U2664688'
+          , 'U2668544'
+          , 'U2668577'
+          , 'U2670311'
+          , 'U2670336'
+          , 'U2671604'
+          , 'U2671607'
+          , 'U2671610'
+          , 'U2671623'
+          , 'U2671627'
+          , 'U2671632'
+          , 'U2671636'
+          , 'U2671655'
+          , 'U2671682'
+          , 'U2671685'
+          , 'U2671694'
+          , 'U2675206'
+          , 'U2675211'
+          , 'U2675257'
+          , 'U2675278'
+          , 'U2678483'
+          , 'U2679581'
+          , 'U2684923'
+          , 'U2684945'
+          , 'U2698159'
+          , 'U2699179'
+          , 'U2699558'
+          , 'U2699581'
+          , 'U2711839'
+          , 'U2711882'
+          , 'U2711899'
+          , 'U2714047'
+          , 'U2715489'
+          , 'U2717406'
+          , 'U2717414'
+          , 'U2717448'
+          , 'U2717457'
+          , 'U2717476'
+          , 'U2717486'
+          , 'U2717488'
+          , 'U2721001'
+          , 'U2721038'
+          , 'U2721051'
+          , 'U2721064'
+          , 'U2725042'
+          , 'U2728171'
+          , 'U2733006'
+          , 'U2735631'
+          , 'U2741321'
+          , 'U2746826'
+          , 'U2746848'
+          , 'U2746917'
+          , 'U2747223'
+          , 'U2750269'
+          , 'U2750705'
+          , 'U2753312'
+          , 'U2753646'
+          , 'U2753658'
+          , 'U2753693'
+          , 'U2754446'
+          , 'U3004473'
+          , 'U3007126'
+          , 'U3013166'
+          , 'U3014311'
+          , 'U3016792'
+          , 'U3024128'
+          , 'U3025641'
+          , 'U3026144'
+          , 'U3027206'
+          , 'U3030021'
+          , 'U3031791'
+          , 'U3032654'
+          , 'U3033236'
+          , 'U3033958'
+          , 'U3037958'
+          , 'U3039637'
+          , 'U3040125'
+          , 'U3043009'
+          , 'U3044373'
+          , 'U3045328'
+          , 'U3045919'
+          , 'U3048199'
+          , 'U3048812'
+          , 'U3051421'
+          , 'U3051884'
+          , 'U3052216'
+          , 'U3059704'
+          , 'U3061274'
+          , 'U3063068'
+          , 'U3068173'
+          , 'U3072894'
+          , 'U3072946'
+          , 'U3075896'
+          , 'U3076632'
+          , 'U3085351'
+          , 'U3089384'
+          , 'U3089639'
+          , 'U3090110'
+          , 'U3091473'
+          , 'U3091817'
+          , 'U3091834'
+          , 'U3092541'
+          , 'U3092776'
+          , 'U3096314'
+          , 'U3098492'
+          , 'U3101501'
+          , 'U3106238'
+          , 'U3107391'
+          , 'U3111618'
+          , 'U3113556'
+          , 'U3116655'
+          , 'U3117040'
+          , 'U3118241'
+          , 'U3119824'
+          , 'U3121512'
+          , 'U3121979'
+          , 'U3122274'
+          , 'U3123942'
+          , 'U3125229'
+          , 'U3125902'
+          , 'U3127372'
+          , 'U3127798'
+          , 'U3129795'
+          , 'U3132054'
+          , 'U3132081'
+          , 'U3134414'
+          , 'U3135461'
+          , 'U3136036'
+          , 'U3137973'
+          , 'U3141183'
+          , 'U3144840'
+          , 'U3147629'
+          , 'U3149742'
+          , 'U3152537'
+          , 'U3153806'
+          , 'U3154122'
+          , 'U3155719'
+          , 'U3156816'
+          , 'U3158505'
+          , 'U3161339'
+          , 'U3162875'
+          , 'U3167385'
+          , 'U3168948'
+          , 'U3169948'
+          , 'U3172758'
+          , 'U3173405'
+          , 'U3174421'
+          , 'U3177007'
+          , 'U3177572'
+          , 'U3177630'
+          , 'U3177774'
+          , 'U3178079'
+          , 'U3179142'
+          , 'U3180181'
+          , 'U3181897'
+          , 'U3182898'
+          , 'U3183636'
+          , 'U3184744'
+          , 'U3184789'
+          , 'U3184884'
+          , 'U3186519'
+          , 'U3189365'
+          , 'U3191827'
+          , 'U3200761'
+          , 'U3201388'
+          , 'U3201789'
+          , 'U3202324'
+          , 'U3205384'
+          , 'U3206393'
+          , 'U3208343'
+          , 'U3208941'
+          , 'U3209685'
+          , 'U3210227'
+          , 'U3211055'
+          , 'U3211981'
+          , 'U3212548'
+          , 'U3212757'
+          , 'U3214954'
+          , 'U3215290'
+          , 'U3215852'
+          , 'U3216088'
+          , 'U3216312'
+          , 'U3219312'
+          , 'U3220141'
+          , 'U3220568'
+          , 'U3221205'
+          , 'U3221801'
+          , 'U3222062'
+          , 'U3222202'
+          , 'U3223433'
+          , 'U3223542'
+          , 'U3227108'
+          , 'U3227468'
+          , 'U3227927'
+          , 'U3229818'
+          , 'U3230519'
+          , 'U3230951'
+          , 'U3231620'
+          , 'U3231648'
+          , 'U3232497'
+          , 'U3233940'
+          , 'U3234388'
+          , 'U3234514'
+          , 'U3235908'
+          , 'U3236263'
+          , 'U3236497'
+          , 'U3238477'
+          , 'U3241565'
+          , 'U3241652'
+          , 'U3242660'
+          , 'U3244182'
+          , 'U3247195'
+          , 'U3250192'
+          , 'U3259688'
+          , 'U3262563'
+          , 'U3267829'
+          , 'U3271798'
+          , 'U3272178'
+          , 'U3272231'
+          , 'U3273155'
+          , 'U3275249'
+          , 'U3276741'
+          , 'U3282058'
+          , 'U3285262'
+          , 'U3296126'
+          , 'U3296981'
+          , 'U3306790'
+          , 'U3307738'
+          , 'U3307850'
+          , 'U3309697'
+          , 'U3310124'
+          , 'U3317449'
+          , 'U3319201'
+          , 'U3322089'
+          , 'U3322698'
+          , 'U3326366'
+          , 'U3331618'
+          , 'U3334405'
+          , 'U3337455'
+          , 'U3350132'
+          , 'U3350655'
+          , 'U3353606'
+          , 'U3354899'
+          , 'U3369083'
+          , 'U3371126'
+          , 'U3371216'
+          , 'U3371751'
+          , 'U3372665'
+          , 'U3871596'
+          , 'U3958434'
+          , 'U4012049'
+          , 'U4250105'
+          , 'U4294473'
+          , 'U4404773'
+          , 'U4708703'
+          , 'U4900937'
+          , 'U4976381'
+          , 'U5243652'
+          , 'U5572817'
+          , 'U5769852'
+          , 'U5934852'
+          , 'U5950149'
+          , 'U6039306'
+          , 'U6107588'
+          , 'U6164866'
+          , 'U6801309'
+          , 'U6934663'
+          , 'U7190940'
+          , 'U7672222'
+          , 'U8226161'
+          , 'U8964183'
+          , 'U9641951'
+          , 'U3465865'
+          , 'U4785876'
+          , 'U5713233'
+          , 'U3479697'
+          , 'U3494196'
+          , 'U2081300'
+          , 'U3512068'
+          , 'U3517538'
+          , 'U3246273'
+          , 'U2396031'
+          , 'U2160542'
+          , 'U4155250'
+          , 'U3521839'
+          , 'U3437736'
+          , 'U3533265'
+          , 'U2665781'
+          , 'U3535220'
+          , 'U3534641'
+          , 'U9352960'
+          , 'U3546124'
+          , 'U3543182'
+          , 'U3543033'
+          , 'U3254872'
+          , 'U3367934'
+          , 'U3557963'
+          , 'U3551770'
+          , 'U3444286'
+          , 'U2499953'
+          , 'U3577124'
+          , 'U2246608'
+          , 'U3580399'
+          , 'U3576319'
+          , 'U3081660'
+          , 'U3589874'
+          , 'U6376892'
+          , 'U0329243'
+          , 'U3592669'
+          , 'U3590734'
+          , 'U3603696'
+          , 'U3610860'
+          , 'U3610857'
+          , 'U2299723'
+          , 'U3626220'
+          , 'U3627493'
+          , 'U0742011'
+          , 'U3629271'
+          , 'U3634599'
+          , 'U3630853'
+          , 'U3610415'
+          , 'U2448260'
+          , 'U3639068'
+          , 'U4027317'
+          , 'U2020516'
+          , 'U3384260'
+          , 'U3653691'
+          , 'U3657867'
+          , 'U3665207'
+          , 'U3072894'
+          , 'U2739034'
+          , 'U3593893'
+          , 'U9423118'
+          , 'U2248896'
+          , 'U3669819'
+          , 'U3679468'
+          , 'U3655622'
+          , 'U3107391'
+          , 'U3680899'
+          , 'U3492325'
+          , 'U2150242'
+          , 'U3688691'
+          , 'U3482133'
+          , 'U3127546'
+          , 'U3690206'
+          , 'U3679183'
+          , 'U7703780'
+          , 'U3685147'
+          , 'U3674835'
+          , 'U3705779'
+          , 'U3660564'
+          , 'U3404088'
+          , 'U3708458'
+          , 'U3712144'
+          , 'U3721900'
+          , 'U3716863'
+          , 'U3491268'
+          , 'U3722256'
+          , 'U3731707'
+          , 'U3208343'
+          , 'U3731772'
+          , 'U3576160'
+          , 'U3205208'
+          , 'U3674045'
+          , 'U2516875'
+          , 'U3565400'
+          , 'U3743228'
+          , 'U4009117'
+          , 'U2863709'
+          , 'U3757805'
+          , 'U3233864'
+          , 'U3757885'
+          , 'U3728905'
+          , 'U3587846'
+          , 'U3764151'
+          , 'U3604701'
+          , 'U3211305'
+          , 'U2713926'
+          , 'U2735757'
+          , 'U3765238'
+          , 'U2422200'
+          , 'U3754152'
+          , 'U3765928'
+          , 'U3375050'
+          , 'U3772155'
+          , 'U3774366'
+          , 'U3767084'
+          , 'U4921157'
+          , 'U3358208'
+          , 'U2605673'
+          , 'U3779999'
+          , 'U3781281'
+          , 'U3761559'
+          , 'U3792776'
+          , 'U3794902'
+          , 'U3795964'
+          , 'U5702055'
+          , 'U3783633'
+          , 'U2723678'
+          , 'U3777506'
+          , 'U3673111'
+          , 'U3803939'
+          , 'U3803455'
+          , 'U3800888'
+          , 'U3807395'
+          , 'U2030085'
+          , 'U2417042'
+          , 'U3777760'
+          , 'U3813906'
+          , 'U3823991'
+          , 'U3827748'
+          , 'U6119534'
+          , 'U3354538'
+          , 'U3712752'
+          , 'U3835085'
+          , 'U2568534'
+          , 'U3832616'
+          , 'U3825416'
+          , 'U3838874'
+          , 'U3848160'
+          , 'U3854197'
+          , 'U3852808'
+          , 'U2262916'
+          , 'U3858144'
+          , 'U3809658'
+          , 'U3857715'
+          , 'U3861645'
+          , 'U3863894'
+          , 'U2310437'
+          , 'U3242989'
+          , 'U3794752'
+          , 'U3956813'
+          , 'U3859681'
+          , 'U3957045'
+          , 'U3949968'
+          , 'U3937785'
+          , 'U3962398'
+          , 'U3778680'
+          , 'U3969388'
+          , 'U3746581'
+          , 'U7066262'
+          , 'U3862245'
+          , 'U3969221'
+          , 'U3962079'
+          , 'U3466221'
+          , 'U3859948'
+          , 'U2347495'
+          , 'U9089719'
+          , 'U3950532'
+          , 'U3964768'
+          , 'U0291848'
+          , 'U3967391'
+          , 'U3943257'
+          , 'U3992527'
+          , 'U3994880'
+          , 'U2480552'
+          , 'U3113443'
+          , 'U3991792'
+          , 'U2357911'
+          , 'U4044443'
+          , 'U3887326'
+          , 'U3796551'
+          , 'U4050617'
+          , 'U3971477'
+          , 'U3235560'
+          , 'U4052691'
+          , 'U3855956'
+          , 'U4058030'
+          , 'U4056987'
+          , 'U2179907'
+          , 'U4066909'
+          , 'U0931224'
+          , 'U2574508'
+          , 'U4067561'
+          , 'U7442679'
+          , 'U4061608'
+          , 'U6163541'
+          , 'U4766533'
+          , 'U4083061'
+          , 'U3088796'
+          , 'U3907909'
+          , 'U3747477'
+          , 'U3979552'
+          , 'U3995837'
+          , 'U4101516'
+          , 'U4098912'
+          , 'U4099955'
+          , 'U3593023'
+          , 'U3510535'
+          , 'U9970310'
+          , 'U4118375'
+          , 'U3998175'
+          , 'U2272358'
+          , 'U4118605'
+          , 'U3976152'
+          , 'U4098832'
+          , 'U3938156'
+          , 'U3148638'
+          , 'U3998051'
+          , 'U3559699'
+          , 'U3216312'
+          , 'U4130885'
+          , 'U4128764'
+          , 'U4130289'
+          , 'U3118542'
+          , 'U4067240'
+          , 'U6982220'
+          , 'U6299455'
+          , 'U4136512'
+          , 'U4135562'
+          , 'U4139332'
+          , 'U3479699'
+          , 'U4097301'
+          , 'U3970792'
+          , 'U3710917'
+          , 'U4152042'
+          , 'U4156863'
+          , 'U4148445'
+          , 'U4119032'
+          , 'U3197787'
+          , 'U4150330'
+          , 'U4041566'
+          , 'U2566039'
+          , 'U4076450'
+          , 'U4173801'
+          , 'U3138654'
+          , 'U6657302'
+          , 'U6422752'
+          , 'U4178128'
+          , 'U3170859'
+          , 'U4172675'
+          , 'U4183117'
+          , 'U8058695'
+          , 'U4188185'
+          , 'U4143849'
+          , 'U2679988'
+          , 'U4098105'
+          , 'U4187231'
+          , 'U4143939'
+          , 'U3648137'
+          , 'U2568400'
+          , 'U4181936'
+          , 'U4218909'
+          , 'U4212185'
+          , 'U2259595'
+          , 'U3795203'
+          , 'U4248428'
+          , 'U4158320'
+          , 'U4189707'
+          , 'U4240954'
+          , 'U4255208'
+          , 'U4146382'
+          , 'U4263653'
+          , 'U4258568'
+          , 'U4265371'
+          , 'U4269414'
+          , 'U4126429'
+          , 'U4281991'
+          , 'U4278563'
+          , 'U3818543'
+          , 'U4290745'
+          , 'U3259474'
+          , 'U4300612'
+          , 'U4195711'
+          , 'U4221426'
+          , 'U4301272'
+          , 'U4242138'
+          , 'U4183542'
+          , 'U4088170'
+          , 'U4103782'
+          , 'U4266929'
+          , 'U2486471'
+          , 'U5177223'
+          , 'U0322656'
+          , 'U4223928'
+          , 'U0765187'
+          , 'U4309700'
+          , 'U4323732'
+          , 'U4277864'
+          , 'U3965025'
+          , 'U2242389'
+          , 'U2739023'
+          , 'U4328009'
+          , 'U4318043'
+          , 'U4335728'
+          , 'U4269054'
+          , 'U9546181'
+          , 'U4339888'
+          , 'U4336230'
+          , 'U4334552'
+          , 'U3181351'
+          , 'U4327276'
+          , 'U3577135'
+          , 'U4338982'
+          , 'U3353606'
+          , 'U4286354'
+          , 'U4330759'
+          , 'U3068298'
+          , 'U0867591'
+          , 'U4365008'
+          , 'U4365879'
+          , 'U4227512'
+          , 'U4367758'
+        );
+
+    DROP TABLE IF EXISTS temp.ArrivalTRM_Ylinne;
+    CREATE TABLE temp.ArrivalTRM_Ylinne SELECT * FROM temp.ArrivalTRM;
+
     """
     dosqlexecute(cnxdict)
 
 
-def ArrivalTRM_():
+def ArrivalTRM(cnxdict):
     cnxdict['sql'] = """
     DROP TABLE IF EXISTS Temp.Temp2 ;
     CREATE TABLE Temp.Temp2
-        SELECT
+    SELECT
             Status.PtMRN
+            , Status.PatientId
             , Status.Status
             , Status.StatusDisease
             , Status.StatusDate
@@ -896,12 +1616,53 @@ def ArrivalTRM_():
             , `labsummary`.`Protocol`
             , `labsummary`.`WildCard`
             , Protocol.Categorized
-            , Protocol.Intensity
+            , CASE
+                WHEN Protocol.Intensity <> 'Intermediate' THEN Protocol.Intensity
+                WHEN Protocol.Intensity = 'Intermediate'
+                    AND `labsummary`.`Protocol` IN (
+                        '3+7'
+                        , '3 + 7'
+                        , '3+7 (ida)'
+                        , '3+7(ida)'
+                        , '3+7 (dauno)'
+                        , '3+7(dauno)'
+                        , '3+7 (dauno) for AML ND2'
+                        , '3+7 (for AML ND)'
+                        , '3+7 (for AML ND1)'
+                        , '3+7 (for AML ND2)'
+                        , '3+7 (for AML REL-S1)'
+                        , '3+7(2 courses)'
+                        , '3+7(dauno) (2 courses)'
+                        , '3+7(dauno) 2 courses'
+                        , '3+7(ida) 2 courses'
+                        , '3+7(ida)(s1) got 2 courses'
+                        , '3+7(ida)-2 courses'
+                        , '3+7(induction for AML)'
+                        , '3+7(SWOG)'
+                        , '7+3'
+                        , '7 + 3'
+                        , '7+3 (dauno.)'
+                        , '7+3(dauno)'
+                        , '7+3(ida)'
+                        , '7+3 standard dose'
+                        , '7+3 (Cytarabine + Idarubicin)'
+                        , 'cytarabine and idarubicin (7 + 3).'
+                        , 'Induct. For AML 3+7'
+                        , 'Induction -3+7'
+                        , 'SO106'
+                        )
+                    THEN 'Intermediate'
+                WHEN Protocol.Intensity = 'Intermediate'
+                    AND `labsummary`.`Protocol` in ('HIDAC', 'HDAC')
+                    THEN 'High'
+                WHEN Protocol.Intensity = 'Intermediate' THEN 'Not Categorized'
+                ELSE Protocol.Intensity
+            END AS Intensity
             , vdatasetpatients.PtBirthDate
             , vdatasetpatients.PtGender
             , timestampdiff(year,vdatasetpatients.PtBirthDate,Protocol.MedTxDate) as AgeAtTreatmentStart
             , `labsummary`.`ResponseDescription`
-            , `labsummary`.`ArrivalDate`
+            , Status.StatusDate AS `ArrivalDate`
             , `labsummary`.`TreatmentStartDate`
             , `labsummary`.`ResponseDate`
             , v_secondary.secondary
@@ -1044,6 +1805,7 @@ def ArrivalTRM_():
             FROM (
                 SELECT DISTINCT
                     PtMRN
+                    , PatientId
                     , StatusDate
                     , statusDisease
                     , Status
@@ -1056,6 +1818,7 @@ def ArrivalTRM_():
             LEFT JOIN (
                 SELECT DISTINCT
                     PtMRN
+                    , PatientId
                     , MedTxDate
                     , Categorized
                     , Intensity
@@ -1079,6 +1842,7 @@ def ArrivalTRM_():
                 , Protocol.Intensity
                 , vdatasetpatients.PtBirthDate
             ORDER BY Status.PtMRN, Status.StatusDate, Protocol.MedTxDate;
+
 
     ALTER TABLE Temp.Temp2
         CHANGE COLUMN `calculated blasts and unclassified` `calculated blasts and unclassified` INT(4) NULL ;
@@ -1110,6 +1874,7 @@ def ArrivalTRM_():
     DROP TABLE IF EXISTS Temp.ArrivalTRM;
     CREATE TABLE Temp.ArrivalTRM
         SELECT a.`PtMRN`
+            , a.`PatientId`
             , a.`Status`
             , a.`StatusDisease`
             , a.`StatusDate`
@@ -1121,7 +1886,7 @@ def ArrivalTRM_():
             , a.`PtBirthDate`
             , a.`PtGender`
             , a.`ResponseDescription`
-            , a.`ArrivalDate`
+            , a.`StatusDate` as `ArrivalDate`
             , a.`TreatmentStartDate`
             , a.`ResponseDate`
 
@@ -1271,22 +2036,17 @@ def ArrivalTRM_():
             ELSE ''
         END;
 
-    DROP TABLE IF EXISTS Temp.TRMRangeOrder;
-    CREATE TABLE Temp.TRMRangeOrder
-        SELECT TRMRangeOrder
-            , TRMRange
-            FROM Temp.ArrivalTRM
-            WHERE Categorized <> 'NOT TREATED'
-            GROUP BY TRMRange
-            ORDER BY TRMRangeOrder ;
-
+    DROP TABLE IF EXISTS caisis.ArrivalTRM;
+    CREATE TABLE caisis.ArrivalTRM SELECT * FROM temp.ArrivalTRM;
     """
     dosqlexecute(cnxdict)
 
 
 CreateFirstMedicalTherapyAfterArrival(cnxdict)
-ArrivalTRM()
-ArrivalTRM_GCLAM()
+ArrivalTRM(cnxdict)
+# ArrivalTRM_GCLAM()
+ArrivalTRM_ForYlinne(cnxdict)
+
 
 df = pd.read_sql("""
     SELECT CASE
@@ -2532,6 +3292,41 @@ df = pd.read_sql("""
 """, cnxdict['cnx'])
 df.to_excel(writer, sheet_name='TRM for GCLAM Arrivals', index=False)
 
+"""
+TRM for Ylinne Arrivals
+"""
+# df = pd.read_sql("""
+#     SELECT `PtMRN`,
+#         `StatusDate` AS ArrivalDate,
+#         `StatusDisease`,
+#         `MedTxDate`,
+#         `TRM_Version1 (Paper)`,
+#         `TRM_Version2 (Online)`,
+#         `TRMRange`,
+#         `ECOG`,
+#         `AgeAtTreatmentStart`,
+#         `calcuated_platelet`,
+#         `calcuated_albumin`,
+#         `secondary`,
+#         `calcuated_wbc`,
+#         `calculated blasts and unclassified`,
+#         `calcuated_creatinine`,
+#         `calculated blast`,
+#         `calculated unclassified`,
+#         `Not Treated`,
+#         `Protocol Unknown`,
+#         `ECOG Missing`,
+#         `Age Missing`,
+#         `Platelet Missing`,
+#         `Secondary Missing`,
+#         `WBC Missing`,
+#         `Circulating Blasts Missing`,
+#         `Creatinine Missing`
+#     FROM `temp`.`ArrivalTRM_Ylinne`
+#     ORDER BY PtMRN, ArrivalDate;
+# """, cnxdict['cnx'])
+# df.to_excel(writer, sheet_name='TRM for Ylinne Arrivals', index=False)
+
 df = pd.read_sql("""
     SELECT `arrivaltrm`.`PtMRN`,
         `arrivaltrm`.`StatusDate`,
@@ -2565,7 +3360,7 @@ df = pd.read_sql("""
         `arrivaltrm`.`WBC Missing`,
         `arrivaltrm`.`Circulating Blasts Missing`,
         `arrivaltrm`.`Creatinine Missing`
-    FROM `temp`.`arrivaltrm`;
+    FROM `caisis`.`arrivaltrm`;
 """, cnxdict['cnx'])
 df.to_excel(writer, sheet_name='Detail for all arrivals', index=False)
 dowritersave(writer,cnxdict)
