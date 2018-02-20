@@ -377,9 +377,7 @@ def CreatePlaygroundTemplate(cnxdict):
 def CreatePlaygroundMolecularTemplate(cnxdict):
     printtext('stack')
 
-    /*
-        Consider removing this query ... not sure it is ever used
-    */
+
     cnxdict['sql'] = """
         /*
             Identifies arrival id's to target when looking for molecular data ??? 
