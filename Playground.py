@@ -204,11 +204,13 @@ def CreatePlaygroundTemplate(cnxdict):
 
 
         /*
-        Records where the patient was not arriving for AML
+        Quick alter, Not part of the main SCRIPT 
         ALTER TABLE `caisis`.`Playground`
            ADD COLUMN `FirstArrivalType`              VARCHAR(45)  NULL FIRST
         ;
         
+        Quick query, Not part of the main SCRIPT 
+        Records where the patient was not arriving for AML
         SELECT * FROM temp.PlaygroundTemp 
             WHERE ArrivalDx NOT LIKE '%aml%' 
             AND   ArrivalDx NOT LIKE '%mds%'
@@ -217,7 +219,7 @@ def CreatePlaygroundTemplate(cnxdict):
         */
         
         /*
-        Remove APL
+        Remove APL -- keep RAEB and MDS
         */
         
         DELETE FROM temp.PlaygroundTemp 
@@ -229,6 +231,9 @@ def CreatePlaygroundTemplate(cnxdict):
         /*
         The main purpose of this requerying is to re-order the fields
         excluding APL
+        
+        Note that the fields "Med*" are temporary for use in mapping the backbone of chemotherapy treatment
+        
         */
         DROP TABLE IF EXISTS caisis.`Playground` ;
         CREATE TABLE caisis.`Playground`
@@ -319,7 +324,7 @@ def CreatePlaygroundTemplate(cnxdict):
             OR a.`ArrivalDx` LIKE '%mds%';
         
         /*
-        QUICK ALTER not part of script
+        Quick ALTER, Not part of the main SCRIPT 
         Alter table caisis.playground ADD COLUMN `FirstArrivalDx` TEXT NULL FIRST
             , ADD COLUMN `arrivalkaryotype` TEXT NULL FIRST
             , Alter table caisis.playground ADD COLUMN `ArrivalKaryotypeDate`         DATETIME NULL FIRST
@@ -327,7 +332,10 @@ def CreatePlaygroundTemplate(cnxdict):
         */
         
         
-        -- AML Categorization into Arrival Type
+        /*
+            AML Categorization into Arrival Type
+            Arrivals with RAEB and MDS are categorized as "Other"
+        */
         UPDATE caisis.Playground
             SET ArrivalType = CASE
                     WHEN ArrivalDx NOT LIKE '%AML%' THEN 'Other'
@@ -338,8 +346,11 @@ def CreatePlaygroundTemplate(cnxdict):
                     ELSE 'Unknown'
                 END ;
         
-        -- Get patient Death, Name and Birthdate
-        -- Refactor add in ethnic/race
+        /*
+            Pull some basic demographic information from Caisis's patient level table
+            Get patient Death, Name and Birthdate
+            Refactor add in ethnic/race
+        */
         UPDATE caisis.playground a, caisis.vdatasetpatients b
             SET a.PtDeathDate = b.PtDeathDate
             , a.PtDeathType = b.PtDeathType
@@ -348,8 +359,8 @@ def CreatePlaygroundTemplate(cnxdict):
             WHERE a.PatientId = b.PatientId ;
         
         
-        /*************************************************************************************
-           Indexing
+        /*
+            Indexing
         */
         
         ALTER TABLE `caisis`.`playground` 
@@ -365,7 +376,14 @@ def CreatePlaygroundTemplate(cnxdict):
 
 def CreatePlaygroundMolecularTemplate(cnxdict):
     printtext('stack')
+
+    /*
+        Consider removing this query ... not sure it is ever used
+    */
     cnxdict['sql'] = """
+        /*
+            Identifies arrival id's to target when looking for molecular data ??? 
+        */
         DROP TABLE IF EXISTS caisis.`PlaygroundMolecularStru` ;
         CREATE TABLE caisis.`PlaygroundMolecularStru`
             SELECT b.`arrival_id`
