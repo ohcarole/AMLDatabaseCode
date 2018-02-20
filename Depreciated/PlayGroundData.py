@@ -1,6 +1,5 @@
-from MySQLdbUtils import *
 from SecondaryDiseaseIdentification import *
-from TRMTable import ArrivalTRM
+
 reload(sys)
 
 from DefineCaisisViews import create_all_views

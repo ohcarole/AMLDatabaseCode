@@ -1,5 +1,4 @@
-from xlsxwriter.workbook import Workbook
-from MySQLdbUtils import *
+from Utilities.MySQLdbUtils import *
 reload(sys)
 
 Identifiers = ('PtMRN','ptmrn','PtName','PtBirthdate','PtBirthDate','PtDeathDate')

@@ -1,4 +1,4 @@
-from Depreciated.CategorizeProtocol import *
+from Depreciated.CategorizeProtocol_ import *
 
 
 def assign_intensity(cnxdict):

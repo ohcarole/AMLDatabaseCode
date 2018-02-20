@@ -1,6 +1,6 @@
 import pyodbc
 
-from MySQLdbUtils import *
+from Utilities.MySQLdbUtils import *
 
 
 def connect_to_caisisprod(cnxdict):

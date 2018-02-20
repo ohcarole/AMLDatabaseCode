@@ -1,4 +1,4 @@
-from MySQLdbUtils import *
+from Utilities.MySQLdbUtils import *
 reload(sys)
 
 cnxdict = connect_to_mysql_db_prod('mrcrisk')

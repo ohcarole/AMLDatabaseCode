@@ -1,10 +1,9 @@
-from xlsxwriter.workbook import Workbook
 import os
-from MessageBox import *
+
 print(os.path.dirname(os.path.realpath(__file__)))
-from MySQLdbUtils import *
 from TimepointUtility import *
-import sys, re
+import sys
+
 reload(sys)
 
 

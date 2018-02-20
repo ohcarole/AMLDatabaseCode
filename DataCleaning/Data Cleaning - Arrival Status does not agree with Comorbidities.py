@@ -1,4 +1,4 @@
-from MySQLdbUtils import *
+from Utilities.MySQLdbUtils import *
 
 reload(sys)
 

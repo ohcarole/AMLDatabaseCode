@@ -1,4 +1,4 @@
-from MySQLdbUtils import *
+from Utilities.MySQLdbUtils import *
 
 cnxdict = connect_to_mysql_db_prod('hma')  # get a connection to the hma section for an example
 

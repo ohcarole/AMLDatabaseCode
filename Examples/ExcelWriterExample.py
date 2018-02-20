@@ -1,4 +1,4 @@
-from MySQLdbUtils import *
+from Utilities.MySQLdbUtils import *
 import pandas as pd
 from openpyxl import load_workbook
 

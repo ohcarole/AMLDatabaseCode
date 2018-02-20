@@ -4,7 +4,6 @@ reload(sys)
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 sys.setdefaultencoding('utf8')
-from GeneralUtils import *
 from warnings import filterwarnings, resetwarnings
 import MySQLdb as db
 import pandas as pd
@@ -12,16 +11,16 @@ import pandas.io.sql as sql
 import numpy as np
 import sqlparse
 from sqlparse import tokens
-from openpyxl import load_workbook
 from Connection import *
-import sys, re, inspect, datetime, time, os
+import sys, inspect, time, os, copy, datetime
 filterwarnings('ignore', category=db.Warning)
 # db.autocommit(True)
 
+showstackinfo = True
+debugmode = False
+
 IGNORE = set(['CREATE FUNCTION',])  # extend this, this goes with the sqlparse function _filter
 
-
-# print(time.strftime("%c"))
 
 def test():
     printtext('stack')
@@ -193,9 +192,9 @@ def clean_common_df_error_columns(df, collist=('PathResult','PathNotes','PathKar
     return df
 
 
-def printtext(txt, debugmode = False, showstackinfo = True):
+def printtext(txt='stack', debugmode = False, showstackinfo = True):
     if debugmode == True:
-        print(txt)
+        print('{0}'.format(txt)),
     elif showstackinfo == True and txt.find('stack') > -1:
         # prints the parent routine's name
         print(    '\nProgram:\t'
@@ -205,7 +204,7 @@ def printtext(txt, debugmode = False, showstackinfo = True):
     return
 
 
-def connect_to_mysql_db_prod(sect, EchoSQL=False, DisplayPath=False):
+def connect_to_mysql_db_prod(sect, EchoSQL=False, DisplayPath=False, lablist=[], molelist=[]):
     # cnxdict = get_cnxdict(sect)
     cnxdict = read_db_config(sect)
     cnxdict['cnx'] = db.connect(host=cnxdict['host'], user=cnxdict['user'],
@@ -216,6 +215,12 @@ def connect_to_mysql_db_prod(sect, EchoSQL=False, DisplayPath=False):
     sql.execute("USE {}".format(cnxdict['schema']), cnxdict['cnx'])
     cnxdict['crs'] = cnxdict['db'].cursor()
     cnxdict['out_filepath'] = buildfilepath(cnxdict, DisplayPath=DisplayPath)
+    """
+        Currently I am adding this parameter to the root, but I think it would make sense to make this more dynamic and
+        have a parameter dictionary that contains these individual parameters.
+    """
+    cnxdict['lablist'] = lablist
+    cnxdict['molelist'] = molelist
     return cnxdict
 
 
@@ -223,7 +228,8 @@ def buildfilepath(cnxdict, filename='', DisplayPath=False):
     if filename == '':
         filename = cnxdict['out_filename']
     outputfile = cnxdict['out_filedir'] + '\\' + filename + '_' + time.strftime('%Y%m%d_%H%M%S') + '.' + cnxdict['out_fileext']
-    createexcelstub(cnxdict['cnx'],outputfile)
+    if 'xls' in cnxdict['out_fileext']:
+        createexcelstub(cnxdict['cnx'],outputfile)
     if DisplayPath:
         print(outputfile)
     return outputfile
@@ -270,7 +276,19 @@ def get_colnames(cnxdict, sch='', tbl=''):
     return collist
 
 
+def dosqlexecute_(cnxdict, Single=False, EchoSQL=None):
+    # wraps dosqlexecute
+    # removes comments from the sql statement, they can be problematic if they contain things like semicolons
+    cnxdict['sql'] = removecommentstring(cnxdict['sql'])
+    # completesqlexecute(cnxdict, Single=False, EchoSQL=None)
+
+
 def dosqlexecute(cnxdict, Single=False, EchoSQL=None):
+    cnxdict['sql'] = removecommentstring(cnxdict['sql'])
+    # def dosqlexecute(cnxdict, Single=False, EchoSQL=None, ExecuteLoop=0):
+    #     if ExecuteLoop == 0:
+    #         cnxdict['sql'] = removecommentstring(cnxdict['sql'])
+    #         ExecuteLoop = ExecuteLoop + 1
     if EchoSQL is None:
         EchoSQL = cnxdict['EchoSQL']
     filterwarnings('ignore', category=db.Warning)
@@ -284,8 +302,9 @@ def dosqlexecute(cnxdict, Single=False, EchoSQL=None):
     elif '<end-of-code>' in cnxdict['sql']:
         delimit = '<end-of-code>'
     else:
-        delimit = ';'
-    cnxdict['sql'] = cnxdict['sql'].replace('\;','<semicolon>')
+        cnxdict['sql'] = cnxdict['sql'].replace(';\n', "<semicolon>")
+        delimit = '<semicolon>'
+
     for cmd in cnxdict['sql'].split(delimit):
         cnxdict['sql'] = cmd.strip() + delimit
         if cnxdict['sql'] == delimit:
@@ -334,7 +353,7 @@ def dosqlexecute(cnxdict, Single=False, EchoSQL=None):
                     cnxdict['db'].commit()
                     recent_rows_changed = cnxdict['crs'].rowcount
                 except:
-                    print ('-- SQL Update Failed:')
+                    print ('-- SQL Delete Failed:')
                     print(cnxdict['sql'])
                     cnxdict['crs'].close()
                     # reset crs, is there a need to reset db?
@@ -439,6 +458,7 @@ def _filter(stmt, allow=0):
         if allow or not isinstance(tok, sqlparse.sql.Comment):
             yield tok
 
+
 def removecommentstring(sqlstring):
     """
     Parses the sql passed in to remove any comments, but reserves comments embedded
@@ -448,6 +468,7 @@ def removecommentstring(sqlstring):
     :return: newstring
     """
     newstring = ''
+    sqlstring = sqlstring + '<end of file remove later>'
     for stmt in sqlparse.split(sqlstring):
         if stmt == '' or stmt is None:
             pass
@@ -455,7 +476,11 @@ def removecommentstring(sqlstring):
             sql = sqlparse.parse(stmt)[0]
             newstring = '{}\n{}\n'.format(newstring,sqlparse.sql.TokenList([t for t in _filter(sql)]))
             # print '\n{}'.format(sqlparse.sql.TokenList([t for t in _filter(sql)]))
-    return newstring
+    if '<end of file remove later>' in newstring:
+        pass
+    return newstring.replace("<end of file remove later>","",-1)
+    # return newstring
+
 
 def sqlfileexecute(fullpathfilename, cnxdict=None, sect=None):
     """

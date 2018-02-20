@@ -1,4 +1,4 @@
-from SQLServer_pyodbc import *
+from Utilities.SQLServer_pyodbc import *
 
 cnxdict = read_db_config('caisiswork')
 cnxdict = connect_to_caisisprod(cnxdict)

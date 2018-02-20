@@ -1,4 +1,4 @@
-from MySQLdbUtils import *
+from Utilities.MySQLdbUtils import *
 reload(sys)
 
 def create_all_views(cnxdict):

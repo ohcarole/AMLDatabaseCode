@@ -1,13 +1,13 @@
 # import time
-from MySQLdbUtils import *
-from SQLServerUtils import *
-from Connection import *
+from Utilities.MySQLdbUtils import *
+from Utilities.SQLServerUtils import *
+from Utilities.Connection import *
 # from SQLServer_pyodbc import *
-from SendNote import mail
+from Utilities.SendNote import mail
 from sqlalchemy import create_engine
-from MessageBox import *
+from Utilities.MessageBox import *
 
-chunkamount = 30000
+chunkamount = 10000
 
 # engine = create_engine('mysql+mysqldb://carole_shaw:1UglyBunnyHop%%%@MYSQL-DB-PRD/caisis')
 
@@ -229,6 +229,9 @@ def get_caisis_tables():
         vDatasetDiagnostics
     """
 
+    tbllist = """
+        vdatasetlabtests
+    """
 
     print('-- Moving Caisis tables to MySQL')
     for tbl in tbllist.split('\n'):
@@ -237,10 +240,18 @@ def get_caisis_tables():
             pass
 
         else:
+            mode = 'replace'
+            indexupdate = True
             if tbl == 'vdatasetlabtests':
-                tempsql = 'SELECT * FROM [WorkDBProd]..[{}] WHERE LabTestCategory IS NOT NULL; '.format(tbl)
-            else:
-                tempsql = 'SELECT * FROM [WorkDBProd]..[{}] '.format(tbl)
+                """
+                    THIS A SHORT CUT
+                    This if statement switches from all rows to append mode so that just those that need to be appended
+                    are moved.  Helpful (quicker) than re-copying the whole table especially when dealing with lab results
+                    formerly not moved to MySQL.
+                """
+                tempsql     = """SELECT * FROM [WorkDBProd]..[{}] WHERE LabTestCategory IN ('BILI','GFRBL','GFRNB')  """.format(tbl)
+                mode        = 'append'
+                indexupdate = False
             print ('-- Create dataframe from caisis table {0}'.format(tbl))
 
             # for chunk in dosqlread(tempsql, cnxdict):
@@ -248,7 +259,6 @@ def get_caisis_tables():
 
             # df = pd.read_sql(cmd, con)
 
-            mode = 'replace'
             print(sql)
             print('Moving to MySQL'),
             loopsymbol = '.'
@@ -271,26 +281,27 @@ def get_caisis_tables():
             cnx = connect_to_mysql_db_prod('caisis_to_mysql')
             curcolnames = get_colnames(cnx, 'caisis', tbl)
             cnx['sql'] = None
-            for colname in curcolnames:  # chunk.columns:
-                # 1 -- Id fields stored as text (Note I think this will work for all fields, but might give some problems
-                #      if indexing a short field, one with fewer than 10 characters.
-                if colname.lower() in ['patientid','labgroupid']:
-                    cnx['sql'] = "ALTER TABLE `caisis`.`{0}` ADD INDEX `{1}` (`{1}`(8) ASC);".format(tbl,colname)
-                if colname.lower() in ['ptmrn',]:
-                    cnx['sql'] = "ALTER TABLE `caisis`.`{0}` ADD INDEX `{1}` (`{1}`(10) ASC);".format(tbl,colname)
-                # 2 -- Dates and integers ( the syntax is the same)
-                if colname.lower() in ['labdate','pathdate','procdate','encdate','specdate','statusdate', 'pathologyid']:
-                    cnx['sql'] = "ALTER TABLE `caisis`.`{0}` ADD INDEX `{1}` (`{1}` ASC);".format(tbl,colname)
-                # 3 -- Free form text (keyword FULLTEXT added)
-                if colname.lower() in ['pathnotes','pathkaryotype']:
-                    cnx['sql'] = "ALTER TABLE `caisis`.`{0}` ADD FULLTEXT INDEX `{1}`(`{1}` ASC);".format(tbl, colname)
-                # 4 -- Text labele
-                if colname.lower() in ['pathtest','labtestcategory', 'labtest']:
-                    cnx['sql'] = "ALTER TABLE `caisis`.`{0}` ADD INDEX `{1}` (`{1}`(100) ASC);".format(tbl,colname)
-                if cnx['sql'] is not None:
-                    print('Indexing on {0}'.format(colname))
-                    dosqlexecute(cnx)
-                    cnx['sql'] = None
+            if indexupdate:
+                for colname in curcolnames:  # chunk.columns:
+                    # 1 -- Id fields stored as text (Note I think this will work for all fields, but might give some problems
+                    #      if indexing a short field, one with fewer than 10 characters.
+                    if colname.lower() in ['patientid','labgroupid','labtestid']:
+                        cnx['sql'] = "ALTER TABLE `caisis`.`{0}` ADD INDEX `{1}` (`{1}`(8) ASC);".format(tbl,colname)
+                    if colname.lower() in ['ptmrn',]:
+                        cnx['sql'] = "ALTER TABLE `caisis`.`{0}` ADD INDEX `{1}` (`{1}`(10) ASC);".format(tbl,colname)
+                    # 2 -- Dates and integers ( the syntax is the same)
+                    if colname.lower() in ['labdate','pathdate','procdate','encdate','specdate','statusdate', 'pathologyid']:
+                        cnx['sql'] = "ALTER TABLE `caisis`.`{0}` ADD INDEX `{1}` (`{1}` ASC);".format(tbl,colname)
+                    # 3 -- Free form text (keyword FULLTEXT added)
+                    if colname.lower() in ['pathnotes','pathkaryotype']:
+                        cnx['sql'] = "ALTER TABLE `caisis`.`{0}` ADD FULLTEXT INDEX `{1}`(`{1}` ASC);".format(tbl, colname)
+                    # 4 -- Text labele
+                    if colname.lower() in ['pathtest','labtestcategory', 'labtest']:
+                        cnx['sql'] = "ALTER TABLE `caisis`.`{0}` ADD INDEX `{1}` (`{1}`(100) ASC);".format(tbl,colname)
+                    if cnx['sql'] is not None:
+                        print('Indexing on {0}'.format(colname))
+                        dosqlexecute(cnx)
+                        cnx['sql'] = None
 
     print('-- Done moving Caisis tables to MySQL')
 
