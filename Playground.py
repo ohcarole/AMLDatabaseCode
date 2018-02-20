@@ -364,7 +364,7 @@ def CreatePlaygroundTemplate(cnxdict):
 
 
 def CreatePlaygroundMolecularTemplate(cnxdict):
-    printtext('Program: ')
+    printtext('stack')
     cnxdict['sql'] = """
         DROP TABLE IF EXISTS caisis.`PlaygroundMolecularStru` ;
         CREATE TABLE caisis.`PlaygroundMolecularStru`
