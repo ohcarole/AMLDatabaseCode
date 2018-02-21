@@ -204,7 +204,18 @@ def printtext(txt='stack', debugmode = False, showstackinfo = True):
     return
 
 
-def connect_to_mysql_db_prod(sect, EchoSQL=False, DisplayPath=False, lablist=[], molelist=[]):
+def add_to_dict(target, itemname="", item=""):
+    """
+        given a dictionary and a parameter add the parameter to the dictionary
+    :return: dictionary
+    """
+    target[itemname]=item
+    return target
+
+
+
+
+def connect_to_mysql_db_prod(sect, parameter_dict={}, DisplayPath=False, EchoSQL=False ):
     # cnxdict = get_cnxdict(sect)
     cnxdict = read_db_config(sect)
     cnxdict['cnx'] = db.connect(host=cnxdict['host'], user=cnxdict['user'],
@@ -219,8 +230,8 @@ def connect_to_mysql_db_prod(sect, EchoSQL=False, DisplayPath=False, lablist=[],
         Currently I am adding this parameter to the root, but I think it would make sense to make this more dynamic and
         have a parameter dictionary that contains these individual parameters.
     """
-    cnxdict['lablist'] = lablist
-    cnxdict['molelist'] = molelist
+    for itemname in parameter_dict.keys():
+        cnxdict[itemname] = parameter_dict[itemname]
     return cnxdict
 
 

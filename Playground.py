@@ -4,7 +4,7 @@ showstackinfo = True
 debugmode = True
 
 def CreatePrevNextArrivalTable(cnxdict):
-    printtext('Program: ')
+    printtext('stack')
     cnxdict['sql'] = """
         USE caisis ;
 
@@ -120,7 +120,7 @@ def CreatePlaygroundTemplate(cnxdict):
     :param cnxdict:
     :return:
     """
-    printtext('Program: ')
+    printtext('stack')
     cnxdict['sql']="""
         /*************************************************************************************
         Patients with an arrival date joined to view arrival with next in
@@ -375,18 +375,26 @@ def CreatePlaygroundTemplate(cnxdict):
 
 
 def CreatePlaygroundMolecularTemplate(cnxdict):
+    """
+        Builds a template for molecular testing results associated with each arrival for each
+        timepoint in the timepoint list.
+    :param cnxdict:
+    :return:
+    """
     printtext('stack')
 
 
     cnxdict['sql'] = """
         /*
-            Identifies arrival id's to target when looking for molecular data ??? 
+            Identifies arrival id's to target when looking for molecular data
+            the structure expands during with a field list built during the 
+            for loop iterating the timepointlist.
         */
         DROP TABLE IF EXISTS caisis.`PlaygroundMolecularStru` ;
         CREATE TABLE caisis.`PlaygroundMolecularStru`
             SELECT b.`arrival_id`
             FROM `temp`.`PlaygroundTemp` a 
-            JOIN arrivalidmapping b
+            JOIN caisis.arrivalidmapping b
             ON a.patientid = b.patientid and a.arrivaldate = b.arrivaldate
             WHERE
             a.`ArrivalDx` LIKE '%aml%'
@@ -395,10 +403,19 @@ def CreatePlaygroundMolecularTemplate(cnxdict):
     """
     dosqlexecute(cnxdict)
 
-    # add molecular test fields
-    timepointlist   = ['Diagnosis','Arrival','Treatment','Response','Relapse']
+    """
+        Using deep copy here because we are going to actually modify the list and don't want to
+        modify the list stored in the connection permanently
+    """
+    molelist = copy.deepcopy(cnxdict['molelist'])
 
-    molecularfieldlist = ['LabGroupId`       INTEGER',
+    #   special fields associated with FLT3
+    molelist[molelist.index('FLT3')] = ['FLT3', ['BasesTest`       TINYTEXT',
+                                                 'Bases`           TINYTEXT',
+                                                 'RatioTest`       TINYTEXT',
+                                                 'Ratio`           TINYTEXT']]
+    # add result fields
+    resultfieldlist = ['LabGroupId`       INTEGER',
                           'LabTest`          TINYTEXT',
                           'SpecimenType`     TINYTEXT',
                           'LabDate`          DATETIME',
@@ -408,28 +425,23 @@ def CreatePlaygroundMolecularTemplate(cnxdict):
                           'Interpretation`   TINYTEXT',
                           'Summary`          TINYTEXT', ]
 
-    testlist = copy.deepcopy(cnxdict['molelist'])
-    testlist[testlist.index('FLT3')] = ['FLT3', ['BasesTest`       TINYTEXT',
-                                  'Bases`           TINYTEXT',
-                                  'RatioTest`       TINYTEXT',
-                                  'Ratio`           TINYTEXT']]
 
-    for timepoint in timepointlist:
-        for test in testlist:
-            molecularinsertlist = ''
-            if test[0] == 'FLT3':  # add-on special fields if FLT3
-                testname = test[0]
-                currfieldlist = molecularfieldlist + test[1]
-            else:
-                testname = test
-                currfieldlist = molecularfieldlist
-            for currfield in currfieldlist:  #fields to insert in playground molecular table
-                insertfield     = "{0}, ADD COLUMN `{1}{2}{3}".format(' '*12,testname,timepoint,currfield.lower())
-                molecularinsertlist   = molecularinsertlist + insertfield + '\n'
 
+    for timepoint in cnxdict['timelist']:
+        for moletest in molelist:
+            resultinsertlist = ""
+            flt3fieldlist = []
+            if moletest[0] == 'FLT3':  # add-on special fields if FLT3
+                flt3fieldlist = resultfieldlist + moletest[1]
+                moletest = moletest[0]
+            for resultfield in resultfieldlist + flt3fieldlist :  # fields to insert in playground molecular table
+                insertfield     = "{0}, ADD COLUMN `{1}{2}{3}".format(' '*12,moletest,timepoint,resultfield)
+                resultinsertlist   = resultinsertlist + insertfield + '\n'
+
+            # switched all fields to lower case to make it easier to export into RedCap later
             cnxdict['sql'] = """
                 ALTER TABLE `caisis`.`PlaygroundMolecularStru` {0} ;
-            """.format(molecularinsertlist.strip(', ').lower())
+            """.format(resultinsertlist.strip(', ').lower())
             dosqlexecute(cnxdict)
 
             cnxdict['sql'] = """
@@ -441,23 +453,29 @@ def CreatePlaygroundMolecularTemplate(cnxdict):
 
 
 def CreatePlaygroundLabsTemplate(cnxdict):
-    printtext('Program: ')
-    cnxdict['sql'] = """
-        DROP TABLE IF EXISTS caisis.`PlaygroundLabs` ;
-        CREATE TABLE caisis.`PlaygroundLabs`
-            SELECT b.`arrival_id`
-            FROM `temp`.`PlaygroundTemp` a 
-            JOIN arrivalidmapping b
-            ON a.patientid = b.patientid and a.arrivaldate = b.arrivaldate
-            WHERE
-            a.`ArrivalDx` LIKE '%aml%'
-            OR a.`ArrivalDx` LIKE '%mds%';
     """
-    dosqlexecute(cnxdict)
+        Builds a template for lab testing results associated with each arrival for each
+        timepoint in the timepoint list.
+        Modifications are made to the caisis database table PlaygroundLabs
+    :param cnxdict:
+    :return: none
+    """
+    printtext('stack')
+    # cnxdict['sql'] = """
+    #     DROP TABLE IF EXISTS caisis.`PlaygroundLabs` ;
+    #     CREATE TABLE caisis.`PlaygroundLabs`
+    #         SELECT b.`arrival_id`
+    #         FROM `temp`.`PlaygroundTemp` a
+    #         JOIN arrivalidmapping b
+    #         ON a.patientid = b.patientid and a.arrivaldate = b.arrivaldate
+    #         WHERE
+    #         a.`ArrivalDx` LIKE '%aml%'
+    #         OR a.`ArrivalDx` LIKE '%mds%';
+    # """
+    # dosqlexecute(cnxdict)
 
     # add lab test fields
-    timepointlist   = ['Diagnosis','Arrival','Treatment','Response','Relapse']
-    labtestfieldlist =   ['LabGroupId`       INTEGER',
+    resultfieldlist =   ['LabGroupId`       INTEGER',
                           'LabTest`          TINYTEXT',
                           'SpecimenType`     TINYTEXT',
                           'LabDate`          DATETIME',
@@ -468,7 +486,7 @@ def CreatePlaygroundLabsTemplate(cnxdict):
                           'Summary`          TINYTEXT', ]
     testlist = cnxdict['lablist']
 
-    for timepoint in timepointlist:
+    for timepoint in cnxdict['timelist']:
         currenttable = 'Playground{0}Labs'.format(timepoint)
         cnxdict['sql'] = """
             DROP TABLE IF EXISTS caisis.`{0}` ;
@@ -484,19 +502,26 @@ def CreatePlaygroundLabsTemplate(cnxdict):
         dosqlexecute(cnxdict)
 
         for testname in testlist:
-            labtestinsertlist = ''
-            for currfield in labtestfieldlist:  #fields to insert in playground labs table
-                insertfield     = "{0}, ADD COLUMN `{1}{2}{3}".format(' '*12,testname,timepoint,currfield)
-                labtestinsertlist   = labtestinsertlist + insertfield + '\n'
+            resultinsertlist = ''
+            for resultfield in resultfieldlist:  #fields to insert in playground labs table
+                insertfield     = "{0}, ADD COLUMN `{1}{2}{3}".format(' '*12,testname,timepoint,resultfield)
+                resultinsertlist   = resultinsertlist + insertfield + '\n'
 
             cnxdict['sql'] = """
                 ALTER TABLE `caisis`.`{0}` {1} ;
-            """.format(currenttable, labtestinsertlist.strip(', ').lower())
+            """.format(currenttable, resultinsertlist.strip(', ').lower())
             dosqlexecute(cnxdict)
+    return None
 
 
 def AssociateTreatment(cnxdict):
-    printtext('Program: ')
+    """
+        Create a table of therapies administered.  Excludes none treatments such as palliative care, hydroxyurea,
+        patients not getting treatment, hospice, and unknown
+    :param cnxdict:
+    :return:
+    """
+    printtext('stack')
     cnxdict['sql'] = """
     /*************************************************************************************
     Find all treatments where a treatment was actually given
@@ -523,7 +548,9 @@ def AssociateTreatment(cnxdict):
                 );
     
     /*************************************************************************************
-        Arrivals with Treatment found
+        Arrivals with Treatment found 
+        Treatment is associated with an arrival within 100 days of arrival 
+        AND NOT after the next arrival date.
     */
     UPDATE caisis.`Playground` a, temp.Treatment b
         SET a.TreatmentStartDate = b.MedTxDate
@@ -538,6 +565,12 @@ def AssociateTreatment(cnxdict):
             OR  b.MedTxDate BETWEEN a.ArrivalDate and DATE_ADD(a.ArrivalDate, INTERVAL 100 DAY)) ;
     
     
+    /*************************************************************************************
+        Arrivals with Treatment found, logic repeated to find an even earlier treatment date 
+        Treatment is associated with an arrival within 100 days of arrival 
+        AND NOT after the next arrival dat
+        AND earlier than a treatment date found in the previous update
+    */
     UPDATE caisis.`Playground` a, temp.Treatment b
         SET a.TreatmentStartDate = b.MedTxDate 
             , a.Treatment = b.MedTxAgent
@@ -552,6 +585,12 @@ def AssociateTreatment(cnxdict):
             OR  b.MedTxDate BETWEEN a.ArrivalDate and DATE_ADD(a.ArrivalDate, INTERVAL 100 DAY)) ;
     
     
+    /*************************************************************************************
+        Arrivals with Treatment found, logic repeated to find an even earlier treatment date 
+        Treatment is associated with an arrival within 100 days of arrival 
+        AND NOT after the next arrival dat
+        AND earlier than a treatment date found in the previous update
+    */
     UPDATE caisis.`Playground` a, temp.Treatment b
         SET a.TreatmentStartDate = b.MedTxDate 
             , a.Treatment = b.MedTxAgent
@@ -570,7 +609,7 @@ def AssociateTreatment(cnxdict):
 
 
 def AssociateNonTreatment(cnxdict):
-    printtext('Program: ')
+    printtext('stack')
     cnxdict['sql'] = """
         /*************************************************************************************
         Find all treatments where no treatment was given
@@ -650,7 +689,7 @@ def AssociateNonTreatment(cnxdict):
 
 
 def RemoveParentheticalTreatmentStatement(cnxdict):
-    printtext('Program: ')
+    printtext('stack')
     cnxdict['sql']="""
         /************************************************************************
             Making case variations and versions without the extra parens
@@ -666,7 +705,7 @@ def RemoveParentheticalTreatmentStatement(cnxdict):
 
 
 def AssociateBackbone(cnxdict):
-    printtext('Program: ')
+    printtext('stack')
     """
         In this section mapping MedTxAgent to the backbone, or common name
     """
@@ -786,7 +825,7 @@ def AssociateBackbone(cnxdict):
 
 
 def AssociateResponse(cnxdict):
-    printtext('Program: ')
+    printtext('stack')
     cnxdict['sql']="""
         /**********************************************************************************************************
             Find all responses entered that occur after a patient treatment
@@ -950,7 +989,7 @@ def AssociateResponse(cnxdict):
 
 
 def AssociateResponseFlow(cnxdict):
-    printtext('Program: ')
+    printtext('stack')
     cnxdict['sql'] = """
         /***********************************************************************************
             Get blasts by FLOW at response
@@ -1246,7 +1285,7 @@ def AssociateResponseFlow(cnxdict):
 
 
 def AssociateRelapse(cnxdict):
-    printtext('Program: ')
+    printtext('stack')
     cnxdict['sql']="""
         /***********************************************************************************
             Figure out if patients have relapsed since treatment or between arrivals
@@ -1351,7 +1390,7 @@ def AssociateRelapse(cnxdict):
 
 
 def AssociateLastUpdate(cnxdict):
-    printtext('Program: ')
+    printtext('stack')
     cnxdict['sql']="""
         UPDATE caisis.Playground a, caisis.vdatasetlastvisit b
             SET a.LastInformationDate =
@@ -1456,7 +1495,7 @@ def AssociateLastUpdate(cnxdict):
 
 
 def AssociateFirstArrival(cnxdict):
-    printtext('Program: ')
+    printtext('stack')
     cnxdict['sql']="""
         /************************************************************************************************
             Update to show the first time the patient arrived, and what type of arrival the
@@ -1496,7 +1535,7 @@ def AssociateFirstArrival(cnxdict):
 
 
 def AssociateDiagnosisDate(cnxdict):
-    printtext('Program: ')
+    printtext('stack')
     excludelist = """DEAD|PERSIST|REFRACT|NOT CATE|ALIVE|ANTECEDENT|CR|ARRIVAL|AHD|NON|PROGRESSIVE|RECOVERY|META|RESIST|UNKNOWN|PR|RECURR|RELAP|RESP|NO EVIDENCE"""
 
     cnxdict['sql'] = """
@@ -1571,7 +1610,7 @@ def AssociateDiagnosisDate(cnxdict):
 
 
 def AssociateArrivalKaryotype(cnxdict):
-    printtext('Program: ')
+    printtext('stack')
     cnxdict['sql']="""
         /************************************************************************************************
             Update to find the karyotype closest to arrival
@@ -1696,7 +1735,7 @@ def AssociateArrivalKaryotype(cnxdict):
 
 
 def AssociateArrivalFISH(cnxdict):
-    printtext('Program: ')
+    printtext('stack')
     cnxdict['sql']="""
         /************************************************************************************************
             Update to find the FISH closest to arrival
@@ -1834,7 +1873,7 @@ def AssociateArrivalFISH(cnxdict):
 
 
 def AssociateArrivalCGAT(cnxdict):
-    printtext('Program: ')
+    printtext('stack')
     cnxdict['sql']="""
         /************************************************************************************************
             Update to find the CGAT closest to arrival
@@ -1968,7 +2007,7 @@ def AssociateArrivalCGAT(cnxdict):
 
 def CreateEventDateRange(cnxdict):
     now = datetime.datetime.now()
-    printtext('Program: ')
+    printtext('stack')
     cnxdict['sql'] = """
     DROP TABLE IF EXISTS caisis.vdataseteventdaterange ;
     CREATE TABLE caisis.vdataseteventdaterange
@@ -2081,7 +2120,7 @@ def CreateEventDateRange(cnxdict):
 
 
 def CreateMolecularTable(cnxdict):
-    printtext('Program: ')
+    printtext('stack')
     cnxdict['sql']="""
         /***********************************************************************************
             Create the npm1 table
@@ -2341,7 +2380,7 @@ def CreateMolecularTable(cnxdict):
 
 
 def AssociateLabs(cnxdict):
-    printtext('Program: ')
+    printtext('stack')
     timepointlist = ['Diagnosis','Arrival','Treatment','Response','Relapse']
     testlist = cnxdict['lablist'] + cnxdict['molelist']
         # ['ANC', 'ALB',  'BLAST', 'CREAT', 'FLUID', 'HCT', 'HGB', 'PLT', 'RBC', 'UNCLASS',
@@ -2452,7 +2491,7 @@ def AssociateLabs(cnxdict):
 
 
 def PushPlaygroundTables(cnxdict,targetdatabase='jake_caisis'):
-    printtext('Program: ')
+    printtext('stack')
     timestring = time.strftime("%Y%m%d")
 
 
@@ -2607,7 +2646,7 @@ def DownloadPlaygroundForRedCapUpload(cnxdict):
     MAIN PROCEDURE CALLS
 """
 def MainProcedureCalls(cnxdict):
-    printtext('Program: ')
+    printtext('stack')
     """
         MAIN PROCEDURE CALLS
     """
@@ -2706,7 +2745,7 @@ def MainProcedureCalls(cnxdict):
     OUTPUT PROCEDURES
 """
 def OutputProcedures(cnxdict):
-    printtext('Program: ')    
+    printtext('stack')    
     """
         OUTPUT PROCEDURES
     """
@@ -2725,11 +2764,14 @@ def OutputProcedures(cnxdict):
     dowritersave(writer, cnxdict)
     print(cnxdict['out_filepath'])
 
+parameter_dict = {}
+add_to_dict(parameter_dict,'timelist',['Diagnosis','Arrival','Treatment','Response','Relapse'])
+add_to_dict(parameter_dict,'lablist',['ANC', 'ALB', 'BLAST', 'CREAT', 'FLUID', 'HCT', 'HGB', 'PLT',
+                                      'RBC', 'UNCLASS', 'WBC', 'BILI', 'GFRBL', 'GFRNB'])
+add_to_dict(parameter_dict,'molelist',['FLT3', 'NPM1', 'CEBPA', 'MUT'])
 
-lablist = ['ANC', 'ALB', 'BLAST', 'CREAT', 'FLUID', 'HCT', 'HGB', 'PLT',
-           'RBC', 'UNCLASS', 'WBC', 'BILI', 'GFRBL', 'GFRNB']
-molelist = ['FLT3', 'NPM1', 'CEBPA', 'MUT']
-cnxdict = connect_to_mysql_db_prod('newplayground',lablist=lablist, molelist=molelist)
+
+cnxdict = connect_to_mysql_db_prod('newplayground',parameter_dict)
 
 now = datetime.datetime.now()
 print(now.strftime("%Y-%m-%d"))
