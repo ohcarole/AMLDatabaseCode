@@ -23,8 +23,6 @@ def read_db_config( sect, config='J:\Estey_AML\AML Programming\Python\sharedUtil
         , 'df': {}
         , 'multi': False
         , 'EchoSQL': False
-        , 'lablist': []
-        , 'molelist': []
           }
     if parser.has_section(sect):
         items = parser.items(sect)
