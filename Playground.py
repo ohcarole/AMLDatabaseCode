@@ -3,6 +3,40 @@ from Utilities.MySQLdbUtils import *
 showstackinfo = True
 debugmode = True
 
+
+def UpdateArrivalIdMapping(cnxdict):
+    """"""
+    printtext('stack')
+    """
+        DROP TABLE IF EXISTS temp.arrivalidmapping ;
+        CREATE TABLE temp.arrivalidmapping 
+            SELECT a.arrival_id
+                , a.patientid
+                , a.ptmrn
+                , a.arrivaldate 
+                , UPPER(b.ptlastname) as ptlastname
+                FROM  caisis.vdatasetarrivalwithprevnext a
+                JOIN  caisis.vdatasetpatients b 
+                    ON a.patientid = b.patientid
+                LEFT JOIN  caisis.arrivalidmapping c
+                    ON a.arrival_id = c.arrival_id
+                WHERE c.arrival_id IS NULL ;
+        
+        UPDATE temp.arrivalidmapping 
+            JOIN (SELECT @newid:=(SELECT MAX(arrival_id) from caisis.arrivalidmapping)) r
+            SET arrival_id = @newid:=@newid+1;
+            
+        
+        INSERT INTO caisis.arrivalidmapping (SELECT * FROM temp.arrivalidmapping) ;
+        
+        UPDATE caisis.vdatasetarrivalwithprevnext a, caisis.arrivalidmapping b
+            SET a.arrival_id = b.arrival_id 
+                WHERE a.patientid = b.patientid AND a.arrivaldate = b.arrivaldate ;
+    """
+    dosqlexecute(cnxdict)
+    return
+
+
 def CreatePrevNextArrivalTable(cnxdict):
     printtext('stack')
     cnxdict['sql'] = """
@@ -432,9 +466,9 @@ def CreatePlaygroundMolecularTemplate(cnxdict):
             resultinsertlist = ""
             flt3fieldlist = []
             if moletest[0] == 'FLT3':  # add-on special fields if FLT3
-                flt3fieldlist = resultfieldlist + moletest[1]
+                resultfieldlist = resultfieldlist + moletest[1]
                 moletest = moletest[0]
-            for resultfield in resultfieldlist + flt3fieldlist :  # fields to insert in playground molecular table
+            for resultfield in resultfieldlist:  # fields to insert in playground molecular table
                 insertfield     = "{0}, ADD COLUMN `{1}{2}{3}".format(' '*12,moletest,timepoint,resultfield)
                 resultinsertlist   = resultinsertlist + insertfield + '\n'
 
@@ -2655,14 +2689,19 @@ def MainProcedureCalls(cnxdict):
 
     # --------------------------------------------------------------------------------------------------------------
     # Call procedure to arrival with previous and next table used to link tables
-    # CreatePrevNextArrivalTable(cnxdict)
+    CreatePrevNextArrivalTable(cnxdict)
+    # --------------------------------------------------------------------------------------------------------------
+    # Makes sure that each patient arrival is mapped to a unique arrival_id that is maintained over time
+    UpdateArrivalIdMapping(cnxdict)
     # --------------------------------------------------------------------------------------------------------------
     # Call procedure to build empty playground structure
-    cnxdict['EchoSQL']=1
     CreatePlaygroundTemplate(cnxdict)
+    # --------------------------------------------------------------------------------------------------------------
+    #
     CreatePlaygroundMolecularTemplate(cnxdict)
+    # --------------------------------------------------------------------------------------------------------------
+    #
     CreatePlaygroundLabsTemplate(cnxdict)
-    cnxdict['EchoSQL']=0
     # --------------------------------------------------------------------------------------------------------------
     # Call procedure to find all unique treatments for patient arrivals (GCLAM etc)
     AssociateTreatment(cnxdict)
@@ -2766,20 +2805,23 @@ def OutputProcedures(cnxdict):
 
 parameter_dict = {}
 add_to_dict(parameter_dict,'timelist',['Diagnosis','Arrival','Treatment','Response','Relapse'])
-add_to_dict(parameter_dict,'lablist',['ANC', 'ALB', 'BLAST', 'CREAT', 'FLUID', 'HCT', 'HGB', 'PLT',
-                                      'RBC', 'UNCLASS', 'WBC', 'BILI', 'GFRBL', 'GFRNB'])
-add_to_dict(parameter_dict,'molelist',['FLT3', 'NPM1', 'CEBPA', 'MUT'])
-
+# add_to_dict(parameter_dict,'lablist',['ANC', 'ALB', 'BLAST', 'CREAT', 'FLUID', 'HCT', 'HGB', 'PLT',
+#                                       'RBC', 'UNCLASS', 'WBC', 'BILI', 'GFRBL', 'GFRNB'])
+add_to_dict(parameter_dict, 'lablist', [])
+# add_to_dict(parameter_dict,'molelist',['FLT3', 'NPM1', 'CEBPA', 'MUT'])
+add_to_dict(parameter_dict,'molelist',['FLT3'])
 
 cnxdict = connect_to_mysql_db_prod('newplayground',parameter_dict)
 
 now = datetime.datetime.now()
 print(now.strftime("%Y-%m-%d"))
 
-MainProcedureCalls(cnxdict)
+# MainProcedureCalls(cnxdict)
 
 # OutputProcedures(cnxdict)
 # CreatePlaygroundLabsTemplate(cnxdict)
+CreatePrevNextArrivalTable(cnxdict)
+UpdateArrivalIdMapping(cnxdict)
 # CreatePlaygroundMolecularTemplate(cnxdict)
 # AssociateLabs(cnxdict)
 # BuildRedCapDictionary(cnxdict)

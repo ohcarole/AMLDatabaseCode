@@ -218,8 +218,6 @@ def get_caisis_tables():
         vDatasetHCTProc
         vDatasetMedicalTherapy
         vDatasetMedTxAdministration
-        vDatasetPathology
-        vDatasetPathTest
         vDatasetPatientProtocols
         vDatasetPatientProtocolStatus
         vDatasetPatients
@@ -227,10 +225,6 @@ def get_caisis_tables():
         vDatasetProtocols
         vDatasetRadiationTherapy
         vDatasetDiagnostics
-    """
-
-    tbllist = """
-        vdatasetlabtests
     """
 
     print('-- Moving Caisis tables to MySQL')
@@ -242,6 +236,7 @@ def get_caisis_tables():
         else:
             mode = 'replace'
             indexupdate = True
+            tempsql = """SELECT * FROM [WorkDBProd]..[{}]""".format(tbl)
             if tbl == 'vdatasetlabtests':
                 """
                     THIS A SHORT CUT

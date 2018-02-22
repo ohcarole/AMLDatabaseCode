@@ -17,27 +17,10 @@ SELECT * FROM temp.Result2 a
 
 
 sqlcmd = """
-SELECT a.PtMRN
-    , a.PatientId
-    , a.ArrivalDx
-    , a.ArrivalDate
-    , a.ArrivalYear
-    , a.TreatmentStartDate
-    , a.MedTxIntent
-    , a.OriginalMedTxAgent AS MedTxAgent
-    , a.BackboneName
-    , a.BackboneAddOn
-    , a.NextArrivalDate
-    , a.TargetDate
-    , a.FirstRangeDate
-    , a.lastrangedate
-    , a.DaysFromArrival
-    , a.FirstTreatment
-    FROM temp.Result2 a
-    join (SELECT count(*), PtMRN, ArrivalDate FROM temp.result2 
-        GROUP BY PtMRN, ArrivalDate Having count(*) > 1) b 
-        ON a.PtMRN = b.PtMRN and a.ArrivalDate = b.ArrivalDate
-        WHERE ArrivalYear > 2008;
+SELECT * FROM PlaygroundDatabase.EEPatientList 
+    WHERE arrival_id_ee IS NULL 
+        and arrivaldx_ee not like '%apl%'
+        and treatment_ee not like '%pall%'
 
 """
 cnxdict['out_filepath'] = buildfilepath(cnxdict, filename='{} Workbook'.format(filedescription))

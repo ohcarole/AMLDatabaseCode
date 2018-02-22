@@ -7,45 +7,35 @@ sys.setdefaultencoding('utf8')
 cnxdict = connect_to_mysql_db_prod('temp')
 filedescription = 'Example'
 cnxdict['sql'] = """
-SELECT
-    a.OriginalProtocol,
-    a.protocol,
-    a.mapto,
-    a.noninduction,
-    a.singleregimen,
-    a.multiregimen,
-    a.druglist,
-    a.wildcard,
-    b.Intensity,
-    a.totaluse
-FROM
-    protocollist.protocollist a
-        LEFT JOIN
-    protocollist.intensitymapping b ON a.OriginalProtocol = b.Protocol
-GROUP BY OriginalProtocol
-ORDER BY a.mapto;
+CREATE TABLE PlaygroundDatabase.EEPatientList
+    SELECT c.arrival_id
+            , b.patientid
+            , ptmrn_ee
+            , ptlastname_ee
+            , arrivaldate_ee
+            , arrivalage_ee
+            , performancestatus_ee
+            , arrivaldx_ee
+            , treatment_ee
+            , various_ee
+            , cyto_ee
+            , cr1dur_ee
+            , response_ee
+            , comment_ee
+    FROM
+        temp.eepatientlist_20180221 a
+            LEFT JOIN caisis.vdatasetpatients b ON b.ptmrn = a.ptmrn_ee
+            LEFT JOIN caisis.arrivalidmapping c ON b.patientid = c.patientid
+                AND a.arrivaldate_ee = c.arrivaldate
+    ORDER BY a.Order; 
 """
 dosqlexecute(cnxdict)
 
 sqlcmd = """
-SELECT
-    a.OriginalProtocol,
-    a.protocol,
-    a.mapto,
-    a.noninduction,
-    a.singleregimen,
-    a.multiregimen,
-    a.druglist,
-    a.wildcard,
-    b.Intensity,
-    a.totaluse
-FROM
-    protocollist.protocollist a
-        LEFT JOIN
-    protocollist.intensitymapping b ON a.OriginalProtocol = b.Protocol
-GROUP BY OriginalProtocol
-ORDER BY a.mapto;
-"""
+SELECT * FROM PlaygroundDatabase.EEPatientList 
+    WHERE arrival_id_ee IS NULL 
+        and arrivaldx_ee not like '%apl%'
+        and treatment_ee not like '%pall%'"""
 cnxdict['out_filepath'] = buildfilepath(cnxdict, filename='{} Workbook'.format(filedescription))
 print(cnxdict['out_filepath'])
 

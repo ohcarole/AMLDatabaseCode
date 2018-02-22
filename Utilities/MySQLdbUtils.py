@@ -498,7 +498,7 @@ def sqlfileexecute(fullpathfilename, cnxdict=None, sect=None):
     Takes a path and filename creates a cursor if needed and executes the sql file code
     :param fullpathfilename:
     :param cnxdict: MySQLdb Connection
-    :param sect: Section in Config.ini
+    :param sect: Section in Config_.ini
     :return: Pass back results of dosqlexecute()
     """
     if sect is None:
