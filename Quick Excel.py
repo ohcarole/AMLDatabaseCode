@@ -5,23 +5,25 @@ reload(sys)
 sys.setdefaultencoding('utf8')
 
 cnxdict = connect_to_mysql_db_prod('temp')
-filedescription = 'multiple patient treatments'
+filedescription = 'RedCap ECOG'
 filename='{} Workbook'.format(filedescription)[0:28]
-print len(filename)
-sqlcmd = """
-SELECT * FROM temp.Result2 a
-    join (SELECT count(*), PtMRN, ArrivalDate FROM temp.result2 
-        GROUP BY PtMRN, ArrivalDate Having count(*) > 1) b 
-        ON a.PtMRN = b.PtMRN and a.ArrivalDate = b.ArrivalDate;
-"""
-
 
 sqlcmd = """
-SELECT * FROM PlaygroundDatabase.EEPatientList 
-    WHERE arrival_id_ee IS NULL 
-        and arrivaldx_ee not like '%apl%'
-        and treatment_ee not like '%pall%'
-
+SELECT  a.arrival_id, a.patientid, a.arrivaldate
+    , group_concat(c.ProcName
+        , IF(ProcCellSource IS NULL, "", concat(" from ",ProcCellSource))
+        , IF(ProcDonMatch   IS NULL, "", concat(" (",ProcDonMatch,")"))
+        , IF(ProcDate       IS NULL, "", concat(" on ",date_format(procdate,'%m/%d/%Y'))) SEPARATOR '\n\r')
+    AS HCTProcedure
+    from playgrounddatabase.playground a
+    LEFT JOIN caisis.vdatasethctproc b
+    ON a.PatientId = b.PatientId
+    LEFT JOIN (
+        SELECT * FROM caisis.vdatasetprocedures 
+        WHERE ProcName = 'HCT') c
+    ON a.PatientId = c.PatientId and b.ProcedureId = c.ProcedureId
+    GROUP BY a.arrival_id
+    ORDER BY a.arrival_id, ProcDate; 
 """
 cnxdict['out_filepath'] = buildfilepath(cnxdict, filename='{} Workbook'.format(filedescription))
 print(cnxdict['out_filepath'])

@@ -12,7 +12,8 @@ import numpy as np
 import sqlparse
 from sqlparse import tokens
 from Connection import *
-import sys, inspect, time, os, copy, datetime
+import openpyxl
+import sys, inspect, time, os, copy, datetime, pyexcel, pyexcel_xlsx
 filterwarnings('ignore', category=db.Warning)
 # db.autocommit(True)
 
@@ -197,9 +198,9 @@ def printtext(txt='stack', debugmode = False, showstackinfo = True):
         print('{0}'.format(txt)),
     elif showstackinfo == True and txt.find('stack') > -1:
         # prints the parent routine's name
-        print(    '\nProgram:\t'
+        print(    '\n# Program:\t'
                 + inspect.stack()[1][1]
-                + ' \nFunction:\t'
+                + ' \n# Function:\t'
                 + inspect.stack()[1][3])
     return
 
@@ -213,8 +214,6 @@ def add_to_dict(target, itemname="", item=""):
     return target
 
 
-
-
 def connect_to_mysql_db_prod(sect, parameter_dict={}, DisplayPath=False, EchoSQL=False ):
     # cnxdict = get_cnxdict(sect)
     cnxdict = read_db_config(sect)
@@ -226,6 +225,7 @@ def connect_to_mysql_db_prod(sect, parameter_dict={}, DisplayPath=False, EchoSQL
     sql.execute("USE {}".format(cnxdict['schema']), cnxdict['cnx'])
     cnxdict['crs'] = cnxdict['db'].cursor()
     cnxdict['out_filepath'] = buildfilepath(cnxdict, DisplayPath=DisplayPath)
+    cnxdict['out_csvpath']  = buildfilepath(cnxdict, DisplayPath=DisplayPath, fileext='csv')
     """
         Currently I am adding this parameter to the root, but I think it would make sense to make this more dynamic and
         have a parameter dictionary that contains these individual parameters.
@@ -235,11 +235,13 @@ def connect_to_mysql_db_prod(sect, parameter_dict={}, DisplayPath=False, EchoSQL
     return cnxdict
 
 
-def buildfilepath(cnxdict, filename='', DisplayPath=False):
+def buildfilepath(cnxdict, filename='', DisplayPath=False, fileext=''):
     if filename == '':
         filename = cnxdict['out_filename']
-    outputfile = cnxdict['out_filedir'] + '\\' + filename + '_' + time.strftime('%Y%m%d_%H%M%S') + '.' + cnxdict['out_fileext']
-    if 'xls' in cnxdict['out_fileext']:
+    if fileext == '':
+        fileext = cnxdict['out_fileext']
+    outputfile = cnxdict['out_filedir'] + '\\' + filename + '_' + time.strftime('%Y%m%d_%H%M%S') + '.' + fileext
+    if 'xls' in fileext:
         createexcelstub(cnxdict['cnx'],outputfile)
     if DisplayPath:
         print(outputfile)

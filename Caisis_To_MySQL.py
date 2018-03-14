@@ -149,7 +149,6 @@ def get_caisis_tables():
         HotSpot
         LabPrefix
         MasumiPopulation
-        MolecularLabs
         MostRecentLab
         MostRecentPath
         Mutation
@@ -207,24 +206,12 @@ def get_caisis_tables():
         vDatasetRadiationTherapy
         vDatasetStatus
         vDatasetLastVisit
+        MolecularLabs
+        LabTestIndex
     """
 
     tbllist = """
-        vDatasetStatus
-        vDatasetCategories
-        vDatasetComorbidities
-        vDatasetEncounters
-        vDatasetEncReviewOfSystems
-        vDatasetHCTProc
-        vDatasetMedicalTherapy
-        vDatasetMedTxAdministration
-        vDatasetPatientProtocols
-        vDatasetPatientProtocolStatus
-        vDatasetPatients
-        vDatasetProcedures
-        vDatasetProtocols
-        vDatasetRadiationTherapy
-        vDatasetDiagnostics
+        ALLKaryo
     """
 
     print('-- Moving Caisis tables to MySQL')

@@ -3,6 +3,12 @@ from Utilities.MySQLdbUtils import *
 showstackinfo = True
 debugmode = True
 
+"""
+Add a layer of complexity.  It is possible to be in "remission" and get a treatment for MRD.  Resistance 
+to that treatment may also be a RELAPSE for the previous treatment.
+"""
+
+
 
 def UpdateArrivalIdMapping(cnxdict):
     """"""
@@ -22,6 +28,11 @@ def UpdateArrivalIdMapping(cnxdict):
                     ON a.arrival_id = c.arrival_id
                 WHERE c.arrival_id IS NULL ;
         
+        ALTER TABLE `temp`.`arrivalidmapping` 
+            ADD INDEX `PtMRN` (`ptmrn`(10) ASC),
+            ADD INDEX `PatientId` (`patientid` ASC),
+            ADD INDEX `ArrivalDate` (`arrivaldate` ASC);
+
         UPDATE temp.arrivalidmapping 
             JOIN (SELECT @newid:=(SELECT MAX(arrival_id) from caisis.arrivalidmapping)) r
             SET arrival_id = @newid:=@newid+1;
@@ -104,6 +115,11 @@ def CreatePrevNextArrivalTable(cnxdict):
                         AND (`a`.`Status` LIKE '%work%'))
                 GROUP BY `a`.`PtMRN` , `a`.`StatusDate`) AS newview_arrival;
 
+        ALTER TABLE `caisis`.`v_arrival` 
+            ADD INDEX `PtMRN` (`PtMRN`(10) ASC),
+            ADD INDEX `PatientId`          (`PatientId` ASC),
+            ADD INDEX `ArrivalDate`        (`ArrivalDate` ASC);
+                    
         CREATE TABLE vdatasetarrivalwithprevnext
         SELECT CAST(NULL AS unsigned) AS arrival_id,
                 a.*,
@@ -195,6 +211,8 @@ def CreatePlaygroundTemplate(cnxdict):
         
             , add column `intensity`                varchar(50)
             , add column `response`                 varchar(50)
+            , add column `remission`                varchar(1)
+            , add column `mrd`                      varchar(1)
             , add column `responseflowsource`       varchar(50)
             , add column `relapsetype`              varchar(20)
             , add column `relapsedisease`           varchar(20)
@@ -204,6 +222,8 @@ def CreatePlaygroundTemplate(cnxdict):
             , add column `originalmedtxagent`       varchar(50)
             , add column `medtxagent`               varchar(50)
             , add column `medtxagentnoparen`        varchar(50)
+            , add column `arrivalecog`              varchar(10)
+            , add column `secondary`                varchar(10)
         
             , add column `firstarrivaldx`           varchar(30)
             , add column `diagnosis`                varchar(20)
@@ -219,6 +239,9 @@ def CreatePlaygroundTemplate(cnxdict):
             , add column `ptdeathtype`              varchar(50)
             , add column `ptlastname`               varchar(50)
             , add column `returnpatient`            varchar(3)
+            , add column `ptrace`                   varchar(32)
+            , add column `ptethnicity`              varchar(45) 
+            , add column `ptgender`                 varchar(6) 
         
             , add column `diagnosisdate`            datetime
             , add column `treatmentstartdate`       datetime
@@ -234,6 +257,7 @@ def CreatePlaygroundTemplate(cnxdict):
             , add column `arrivalkaryotypedate`     datetime
             , add column `arrivalfishdate`          datetime
             , add column `arrivalcgatdate`          datetime
+            , add column `arrivalecogdate`          datetime
         ;
 
 
@@ -276,6 +300,9 @@ def CreatePlaygroundTemplate(cnxdict):
                    , a.`patientid`
                    , a.`ptbirthdate`
                    , a.`ptlastname`
+                   , a.`ptrace`
+                   , a.`ptethnicity`
+                   , a.`ptgender`
                    
                    # information about this arrival at uw/scca
                    , a.`returnpatient`
@@ -283,8 +310,11 @@ def CreatePlaygroundTemplate(cnxdict):
                    , a.`diagnosisdate`
                    , a.`arrivaldx`
                    , a.`arrivaltype`
+                   , a.`secondary`
                    , a.`arrivaldate`
                    , a.`arrivalyear`
+                   , a.`arrivalecog`
+                   , a.`arrivalecogdate`
                    , a.`arrivalkaryotype`
                    , a.`arrivalkaryotypedate`
                    , a.`arrivalfish`
@@ -309,6 +339,8 @@ def CreatePlaygroundTemplate(cnxdict):
                    # response for this arrival's treatment
                    , a.`daystoresponse`
                    , a.`response`
+                   , a.`remission`
+                   , a.`mrd`
                    , a.`responsedate`
                    , a.`crnumber`
                 
@@ -387,9 +419,12 @@ def CreatePlaygroundTemplate(cnxdict):
         */
         UPDATE caisis.playground a, caisis.vdatasetpatients b
             SET a.PtDeathDate = b.PtDeathDate
-            , a.PtDeathType = b.PtDeathType
-            , a.PtBirthDate = b.PtBirthDate
-            , a.PtLastName = b.PtLastName
+            , a.PtDeathType   = b.PtDeathType
+            , a.PtBirthDate   = b.PtBirthDate
+            , a.PtLastName    = b.PtLastName
+            , a.PtGender      = b.PtGender
+            , a.PtRace        = b.PtRace
+            , a.PtEthnicity   = b.PtEthnicity
             WHERE a.PatientId = b.PatientId ;
         
         
@@ -449,7 +484,7 @@ def CreatePlaygroundMolecularTemplate(cnxdict):
                                                  'RatioTest`       TINYTEXT',
                                                  'Ratio`           TINYTEXT']]
     # add result fields
-    resultfieldlist = ['LabGroupId`       INTEGER',
+    standardfieldlist = ['LabGroupId`       INTEGER',
                           'LabTest`          TINYTEXT',
                           'SpecimenType`     TINYTEXT',
                           'LabDate`          DATETIME',
@@ -466,7 +501,7 @@ def CreatePlaygroundMolecularTemplate(cnxdict):
             resultinsertlist = ""
             flt3fieldlist = []
             if moletest[0] == 'FLT3':  # add-on special fields if FLT3
-                resultfieldlist = resultfieldlist + moletest[1]
+                resultfieldlist = standardfieldlist + moletest[1]
                 moletest = moletest[0]
             for resultfield in resultfieldlist:  # fields to insert in playground molecular table
                 insertfield     = "{0}, ADD COLUMN `{1}{2}{3}".format(' '*12,moletest,timepoint,resultfield)
@@ -881,19 +916,46 @@ def AssociateResponse(cnxdict):
                 , b.BackBoneAddOn
                 , a.StatusDisease AS ResponseDisease
                 , a.Status AS Response
+                , CASE 
+                    WHEN a.Status IN ( '+CRp'
+                    , 'CR'
+                    , 'CR CYTO MRD'
+                    , 'CR MRD'
+                    , 'CR-MRD'
+                    , 'Cri'
+                    , 'CRi CYTO MRD'
+                    , 'Cri MRD'
+                    , 'CRi-MRD'
+                    , 'CRp'
+                    , 'CRp CYTO MRD'
+                    , 'CRp EXD MRD'
+                    , 'CRp MRD'
+                    , 'No Evidence of Disease'
+                    ) THEN 1 
+                    WHEN a.Status IN ( 'Resistant'
+                    , 'Refractory'
+                    , 'Recurrence'                    
+                    , 'Death'
+                    , 'Response:  Death'
+                    , 'Response: Death'
+                    , 'Dead of Disease'
+                    , 'Progressive Disease') THEN 0
+                    WHEN a.Status IN ('PR') THEN 2
+                    WHEN a.Status IN ('Response Not Categorized'
+                    , 'Not Categorized') THEN 3
+                END AS remission 
                 , a.StatusDate AS ResponseDate
                 , b.NextArrivalDate
                 , TIMESTAMPDIFF(DAY,b.TreatmentStartDate,a.StatusDate) AS DaysToResponse
                 , a.StatusDate BETWEEN b.TreatmentStartDate and DATE_ADD(b.TreatmentStartDate, INTERVAL 100 DAY) AS ResponseWithin100Days
-                , a.StatusDate < b.NextArrivalDate OR b.NextArrivalDate IS NULL AS ResponseBeforeNextArrival
+                , (a.StatusDate < b.NextArrivalDate OR b.NextArrivalDate IS NULL) AS ResponseBeforeNextArrival
                 , 0 AS Used
                 FROM caisis.vdatasetstatus a
                     LEFT JOIN Caisis.Playground b
                         ON a.PatientId = b.PatientId
-                WHERE (a.StatusDisease LIKE '%aml%')
-                    AND (a.Status like '%unk response%'
-                    OR a.Status In (
-                    '+CRp'
+                WHERE a.statusdisease RLIKE 'A.L'
+                    and (a.Status like '%unk response%'
+                    OR a.Status In ( '+CRp'
                     , 'CR'
                     , 'CR CYTO MRD'
                     , 'CR MRD'
@@ -909,15 +971,20 @@ def AssociateResponse(cnxdict):
                     , 'PR'
                     , 'Resistant'
                     , 'Refractory'
-                    , 'Death'
                     , 'Response:  Death'
                     , 'Response: Death'
                     , 'Persistent Disease'
-                    , 'Dead of Disease'
+                    , 'Not Categorized'
                     , 'Response Not Categorized'
-                )) 
-                AND b.TreatmentStartDate <= a.StatusDate;
-        
+                    , 'No Evidence of Disease'
+                    , 'Progressive Disease'
+                    ))
+                AND CASE
+                    WHEN b.TreatmentStartDate IS NULL THEN a.StatusDate > b.ArrivalDate 
+                    ELSE b.TreatmentStartDate <= a.StatusDate
+                END; 
+                
+                        
         /*
         SELECT * FROM temp.Response ;
         SELECT * FROM temp.Response WHERE DaysToResponse > 100;
@@ -1318,6 +1385,36 @@ def AssociateResponseFlow(cnxdict):
     return
 
 
+def AssociatePerformanceStatus(cnxdict):
+    """
+        # Code to get HCT and ECOG
+        Performance status is stored in the "encounters" table
+    """
+    cnxdict['sql'] = """ 
+        CREATE TABLE temp.encounter
+            SELECT a.arrival_id
+                , b.EncECOG_Score
+                , b.Encdate
+                , a.ptmrn
+                , a.patientid
+                , a.ptlastname
+            FROM caisis.playground a
+            LEFT JOIN caisis.vdatasetencounters b
+            ON a.patientid = b.patientid 
+                and abs(timestampdiff(day,a.arrivaldate,b.encdate)) < 3 
+                WHERE b.encdate IS NOT NULL;
+        
+        UPDATE caisis.playground a
+            , temp.encounter b
+            SET a.arrivalecog = b.EncECOG_Score
+            , a.arrivalecogdate = b.EncDate
+            WHERE a.arrival_id = b.arrival_id;
+         
+    """
+    dosqlexecute(cnxdict)
+    return
+
+
 def AssociateRelapse(cnxdict):
     printtext('stack')
     cnxdict['sql']="""
@@ -1425,6 +1522,10 @@ def AssociateRelapse(cnxdict):
 
 def AssociateLastUpdate(cnxdict):
     printtext('stack')
+    """
+        The table vdatasetlastvisit is created on SQL server and is downloaded and pushed to the MySQL database
+        via the program "CaisisToMySQL"
+    """
     cnxdict['sql']="""
         UPDATE caisis.Playground a, caisis.vdatasetlastvisit b
             SET a.LastInformationDate =
@@ -2142,7 +2243,11 @@ def CreateEventDateRange(cnxdict):
     ALTER TABLE `caisis`.`vdataseteventdaterange`
         ADD INDEX `Arrival_Id`  (`Arrival_Id` ASC),
         ADD INDEX `PatientId`   (`PatientId` ASC),
-        ADD INDEX `ArrivalDate` (`ArrivalDate` ASC);
+        ADD INDEX `ArrivalDate` (`ArrivalDate` ASC),
+        ADD INDEX `Event` (`Event`(10) ASC),
+        ADD INDEX `StartDateRange` (`StartDateRange` ASC),
+        ADD INDEX `EndDateRange` (`EndDateRange` ASC),
+        ADD INDEX `TargetDate` (`TargetDate` ASC);
         
     UPDATE `caisis`.`vdataseteventdaterange` 
         SET EndDateRange = STR_TO_DATE(CURDATE(),'%Y-%m-%d')
@@ -2417,9 +2522,6 @@ def AssociateLabs(cnxdict):
     printtext('stack')
     timepointlist = ['Diagnosis','Arrival','Treatment','Response','Relapse']
     testlist = cnxdict['lablist'] + cnxdict['molelist']
-        # ['ANC', 'ALB',  'BLAST', 'CREAT', 'FLUID', 'HCT', 'HGB', 'PLT', 'RBC', 'UNCLASS',
-        #         'WBC', 'FLT3', 'NPM1',  'CEBPA', 'MUT', ]
-
 
     for testname in testlist:
         sourcetable        = 'vdatasetlabtests'
@@ -2473,7 +2575,9 @@ def AssociateLabs(cnxdict):
                 CREATE TABLE temp.beforetargetdate
                     SELECT {3} FROM caisis.{2} a
                     JOIN caisis.vdataseteventdaterange b ON a.PatientId = b.PatientId 
-                    WHERE b.Event = '{0}' AND   a.LabTestCategory = '{1}' AND a.LabDate BETWEEN b.StartDateRange AND b.TargetDate
+                    WHERE UPPER(b.Event) = '{0}' 
+                        AND   UPPER(a.LabTestCategory) = '{1}' 
+                        AND a.LabDate BETWEEN b.StartDateRange AND b.TargetDate
                     GROUP BY b.arrival_id, a.LabTest, ABS(TIMESTAMPDIFF(DAY,a.LabDate,b.TargetDate))
                     ORDER BY b.arrival_id, a.LabTest, ABS(TIMESTAMPDIFF(DAY,a.LabDate,b.TargetDate)) ; 
         
@@ -2482,7 +2586,9 @@ def AssociateLabs(cnxdict):
                 CREATE TABLE temp.aftertargetdate
                     SELECT {3} FROM caisis.{2} a
                     JOIN caisis.vdataseteventdaterange b ON a.PatientId = b.PatientId 
-                    WHERE b.Event = '{0}' AND   a.LabTestCategory = '{1}' AND   a.LabDate BETWEEN b.TargetDate AND b.EndDateRange
+                    WHERE UPPER(b.Event) = '{0}' 
+                        AND   UPPER(a.LabTestCategory) = '{1}' 
+                        AND   a.LabDate BETWEEN b.TargetDate AND b.EndDateRange
                     GROUP BY b.arrival_id, a.LabTest, ABS(TIMESTAMPDIFF(DAY,a.LabDate,b.TargetDate))
                     ORDER BY b.arrival_id, a.LabTest, ABS(TIMESTAMPDIFF(DAY,a.LabDate,b.TargetDate)) ; 
     
@@ -2496,7 +2602,7 @@ def AssociateLabs(cnxdict):
                 
                 DROP TABLE IF EXISTS temp.beforetargetdate ;
                 DROP TABLE IF EXISTS temp.aftertargetdate ;
-            """.format(timepoint, testname, sourcetable,selectfieldlist)
+            """.format(timepoint.upper(), testname.upper(), sourcetable,selectfieldlist)
             dosqlexecute(cnxdict)
 
             if testname == 'FLT3':
@@ -2638,42 +2744,43 @@ def BuildRedCapDictionary(cnxdict):
 
 def DownloadRelatedPlaygroundTablesForRedCapUpload(cnxdict):
     cnxdict['sql'] = ''
-    unioncmd  = ''
     schema = 'caisis'
-    for tablename in ['playgrounddiagnosislabs'
-                ,'playgroundarrivallabs'
-                ,'playgroundtreatmentlabs'
-                ,'playgroundresponselabs'
-                ,'playgroundrelapselabs'
-                ,'playgroundmolecular']:
 
+    for tablename in cnxdict['playgroundtablelist']:
         cmd = """
-            SELECT * FROM {} ORDER BY Arrival_Id;
-        """.format(tablename)
+            SELECT * FROM `{0}`.`{1}` ORDER BY Arrival_Id;
+        """.format(schema,tablename)
         filedescription = '{}'.format(tablename)
         cnxdict['out_fileext'] = 'csv'
         cnxdict['out_filepath'] = buildfilepath(cnxdict, filename=filedescription[0:28])
         df = pd.read_sql(cmd, cnxdict['cnx'])
         df.to_csv(cnxdict['out_filepath'], index=False, encoding='utf-8')
         print(cnxdict['out_filepath'])
+    return None
 
 
 def DownloadPlaygroundForRedCapUpload(cnxdict):
+    """
+    Exports table data as xlsx rather than as csv.  This is because any time the data may contain a comma and mess up the export when you export to csv
+
+    :param cnxdict:
+    :return:
+    """
     cnxdict['sql'] = ''
-    unioncmd  = ''
     schema = 'caisis'
-    for tablename in ['playground']:
+    for tablename in cnxdict['playgroundtablelist']:
         cmd = """
-            SELECT * FROM {} ORDER BY Arrival_Id;
-        """.format(tablename)
+            SELECT * FROM `{0}`.`{1}` ORDER BY Arrival_Id;
+        """.format(schema,tablename)
         filedescription = '{}'.format(tablename)
-        cnxdict['out_fileext'] = 'xlsx'
-        cnxdict['out_filepath'] = buildfilepath(cnxdict, filename=filedescription[0:28])
+        cnxdict['out_filepath'] = buildfilepath(cnxdict, DisplayPath=True, filename=filedescription[0:28], fileext='xlsx')
         writer = pd.ExcelWriter(cnxdict['out_filepath'],datetime_format='mm/dd/yyyy')  # datetime_format='mmm d yyyy hh:mm:ss'
         df = pd.read_sql(cmd, cnxdict['cnx'])
         df.to_excel(writer, sheet_name=tablename, index=False)
         dowritersave(writer, cnxdict)
-        print(cnxdict['out_filepath'])
+        wb = pyexcel.load_book(cnxdict['out_filepath'])
+        cnxdict['out_csvpath'] = buildfilepath(cnxdict, DisplayPath=True, filename=tablename, fileext='csv')
+        wb[0].save_as(cnxdict['out_csvpath'])
 
 
 """
@@ -2685,92 +2792,99 @@ def MainProcedureCalls(cnxdict):
         MAIN PROCEDURE CALLS
     """
 
-    cnxdict['EchoSQL']=0  # no output
+    cnxdict['EchoSQL']=1  # 0 = no output
 
-    # --------------------------------------------------------------------------------------------------------------
-    # Call procedure to arrival with previous and next table used to link tables
-    CreatePrevNextArrivalTable(cnxdict)
-    # --------------------------------------------------------------------------------------------------------------
-    # Makes sure that each patient arrival is mapped to a unique arrival_id that is maintained over time
-    UpdateArrivalIdMapping(cnxdict)
-    # --------------------------------------------------------------------------------------------------------------
-    # Call procedure to build empty playground structure
-    CreatePlaygroundTemplate(cnxdict)
-    # --------------------------------------------------------------------------------------------------------------
-    #
-    CreatePlaygroundMolecularTemplate(cnxdict)
-    # --------------------------------------------------------------------------------------------------------------
-    #
-    CreatePlaygroundLabsTemplate(cnxdict)
-    # --------------------------------------------------------------------------------------------------------------
-    # Call procedure to find all unique treatments for patient arrivals (GCLAM etc)
-    AssociateTreatment(cnxdict)
-    # --------------------------------------------------------------------------------------------------------------
-    # Call procedure to find non-treatments for patient arrivals (palliative etc)
-    AssociateNonTreatment(cnxdict)
-    # --------------------------------------------------------------------------------------------------------------
-    # Make a copy of the treatment name without the parenthetical statements to make it
-    # easier to map
-    RemoveParentheticalTreatmentStatement(cnxdict)
-    # --------------------------------------------------------------------------------------------------------------
-    # In this section mapping MedTxAgent to the backbone, or common name
-    AssociateBackbone(cnxdict)
-    # --------------------------------------------------------------------------------------------------------------
-    # In this section response information added to the status screen is joined to find
-    # response to induction treatment courses
-    AssociateResponse(cnxdict)
-    # --------------------------------------------------------------------------------------------------------------
-    # Get blasts by FLOW at response
-    AssociateResponseFlow(cnxdict)
-    # --------------------------------------------------------------------------------------------------------------
-    # Figure out if patients have relapsed since treatment or between arrivals
-    AssociateRelapse(cnxdict)
-    # --------------------------------------------------------------------------------------------------------------
-    # Fill in fields that indicate the last time we have a status (abstraction) for the patient, last lab, and deceased.
-    AssociateLastUpdate(cnxdict)
-    # --------------------------------------------------------------------------------------------------------------
-    # Update to show the first time the patient arrived, and what type of arrival the
-    # patient had then.  This is helpful when looking at stay vs go.
-    AssociateFirstArrival(cnxdict)
-    # --------------------------------------------------------------------------------------------------------------
-    # Update to find the karyotype closest to arrival
-    AssociateArrivalKaryotype(cnxdict)
-    # --------------------------------------------------------------------------------------------------------------
-    # Update to find the FISH closest to arrival
-    AssociateArrivalFISH(cnxdict)
-    # --------------------------------------------------------------------------------------------------------------
-    # Update to find the CGAT closest to arrival
-    AssociateArrivalCGAT(cnxdict)
-    # --------------------------------------------------------------------------------------------------------------
-    # Update to find the CGAT closest to arrival
-    AssociateDiagnosisDate(cnxdict)
-    # --------------------------------------------------------------------------------------------------------------
-    # Date ranges for finding information linked to key events:  Dx, Arrival, Rx, Response, Relapse
-    CreateEventDateRange(cnxdict)
-    # --------------------------------------------------------------------------------------------------------------
-    # Query lab data to create vdatasetmolecular table
-    CreateMolecularTable(cnxdict)
-    # CreateCommonLabTables(cnxdict)
-    # --------------------------------------------------------------------------------------------------------------
-    # Associate the molecular lab data with each arrival timepoint -- tons of fields
-    cnxdict['EchoSQL']=1
-    AssociateLabs(cnxdict)
-    # AssociateCommonLabs(cnxdict)
-    cnxdict['EchoSQL']=0
-    # --------------------------------------------------------------------------------------------------------------
-    # Range tables contain the StartDateRange, TargetDate, and EndDateRange values which represent dates in
-    # which to look for valid testing results for a patient in order for them to be relevant for a patient event
-    # such as "diagnosis" or "treatment start".  Since the time range of valid tests varies with the particular
-    # test or event, a new range table is created for dis-similar tests.
-    #CreateMolecularTestRange(cnxdict)
+    if 0:
+        # --------------------------------------------------------------------------------------------------------------
+        # Call procedure to arrival with previous and next table used to link tables
+        CreatePrevNextArrivalTable(cnxdict)
+        # --------------------------------------------------------------------------------------------------------------
+        # Makes sure that each patient arrival is mapped to a unique arrival_id that is maintained over time
+        UpdateArrivalIdMapping(cnxdict)
+        # --------------------------------------------------------------------------------------------------------------
+        # Call procedure to build empty playground structure
+        CreatePlaygroundTemplate(cnxdict)
+        # --------------------------------------------------------------------------------------------------------------
+        #
+        CreatePlaygroundMolecularTemplate(cnxdict)
+        # --------------------------------------------------------------------------------------------------------------
+        #
+        CreatePlaygroundLabsTemplate(cnxdict)
+        # --------------------------------------------------------------------------------------------------------------
+        # Call procedure to find all unique treatments for patient arrivals (GCLAM etc)
+        AssociateTreatment(cnxdict)
+        # --------------------------------------------------------------------------------------------------------------
+        # Call procedure to find non-treatments for patient arrivals (palliative etc)
+        AssociateNonTreatment(cnxdict)
+        # --------------------------------------------------------------------------------------------------------------
+        # Make a copy of the treatment name without the parenthetical statements to make it
+        # easier to map
+        RemoveParentheticalTreatmentStatement(cnxdict)
+        # --------------------------------------------------------------------------------------------------------------
+        # In this section mapping MedTxAgent to the backbone, or common name
+        AssociateBackbone(cnxdict)
+        # --------------------------------------------------------------------------------------------------------------
+        # In this section response information added to the status screen is joined to find
+        # response to induction treatment courses
+        AssociateResponse(cnxdict)
+        # --------------------------------------------------------------------------------------------------------------
+        # Get blasts by FLOW at response
+        AssociateResponseFlow(cnxdict)
+        # --------------------------------------------------------------------------------------------------------------
+        # Figure out if patients have relapsed since treatment or between arrivals
+        AssociateRelapse(cnxdict)
+        # --------------------------------------------------------------------------------------------------------------
+        # Fill in ecog performance status fields
+        AssociatePerformanceStatus(cnxdict)
+        # --------------------------------------------------------------------------------------------------------------
+        # Fill in fields that indicate the last time we have a status (abstraction) for the patient, last lab, and deceased.
+        AssociateLastUpdate(cnxdict)
+        # --------------------------------------------------------------------------------------------------------------
+        # Update to show the first time the patient arrived, and what type of arrival the
+        # patient had then.  This is helpful when looking at stay vs go.
+        AssociateFirstArrival(cnxdict)
+        # --------------------------------------------------------------------------------------------------------------
+        # Update to find the karyotype closest to arrival
+        AssociateArrivalKaryotype(cnxdict)
+        # --------------------------------------------------------------------------------------------------------------
+        # Update to find the FISH closest to arrival
+        AssociateArrivalFISH(cnxdict)
+        # --------------------------------------------------------------------------------------------------------------
+        # Update to find the CGAT closest to arrival
+        AssociateArrivalCGAT(cnxdict)
+        # --------------------------------------------------------------------------------------------------------------
+        # Update to find the CGAT closest to arrival
+        AssociateDiagnosisDate(cnxdict)
+        # --------------------------------------------------------------------------------------------------------------
+        # Date ranges for finding information linked to key events:  Dx, Arrival, Rx, Response, Relapse
+        CreateEventDateRange(cnxdict)
+        # --------------------------------------------------------------------------------------------------------------
+        # Query lab data to create vdatasetmolecular table
+        CreateMolecularTable(cnxdict)
+        # CreateCommonLabTables(cnxdict)
 
-    # --------------------------------------------------------------------------------------------------------------
-    # Copy updated playground to Jake
-    PushPlaygroundTables(cnxdict, 'jake_caisis')
-    # --------------------------------------------------------------------------------------------------------------
-    # Copy updated playground to playgrounddatabase
-    PushPlaygroundTables(cnxdict, 'playgrounddatabase')
-    BuildRedCapDictionary(cnxdict)
+        # --------------------------------------------------------------------------------------------------------------
+        # Associate the molecular lab data with each arrival timepoint -- tons of fields
+        AssociateLabs(cnxdict)
+        # AssociateCommonLabs(cnxdict)
+        # --------------------------------------------------------------------------------------------------------------
+        # Range tables contain the StartDateRange, TargetDate, and EndDateRange values which represent dates in
+        # which to look for valid testing results for a patient in order for them to be relevant for a patient event
+        # such as "diagnosis" or "treatment start".  Since the time range of valid tests varies with the particular
+        # test or event, a new range table is created for dis-similar tests.
+        # CreateMolecularTestRange(cnxdict)
+
+        # --------------------------------------------------------------------------------------------------------------
+        # Copy updated playground to Jake
+        # PushPlaygroundTables(cnxdict, 'jake_caisis')
+
+        # --------------------------------------------------------------------------------------------------------------
+        # Copy updated playground to playgrounddatabase
+        # PushPlaygroundTables(cnxdict, 'playgrounddatabase')
+
+        BuildRedCapDictionary(cnxdict)
+
+
     DownloadPlaygroundForRedCapUpload(cnxdict)
 
 # Depriciated
@@ -2805,24 +2919,69 @@ def OutputProcedures(cnxdict):
 
 parameter_dict = {}
 add_to_dict(parameter_dict,'timelist',['Diagnosis','Arrival','Treatment','Response','Relapse'])
-# add_to_dict(parameter_dict,'lablist',['ANC', 'ALB', 'BLAST', 'CREAT', 'FLUID', 'HCT', 'HGB', 'PLT',
-#                                       'RBC', 'UNCLASS', 'WBC', 'BILI', 'GFRBL', 'GFRNB'])
-add_to_dict(parameter_dict, 'lablist', [])
-# add_to_dict(parameter_dict,'molelist',['FLT3', 'NPM1', 'CEBPA', 'MUT'])
-add_to_dict(parameter_dict,'molelist',['FLT3'])
+add_to_dict(parameter_dict
+    , 'playgroundtablelist'
+        ,['playground'
+        , 'playgrounddiagnosislabs'
+        , 'playgroundarrivallabs'
+        , 'playgroundtreatmentlabs'
+        , 'playgroundresponselabs'
+        , 'playgroundrelapselabs'
+        , 'playgroundmolecular'] )
+
+add_to_dict(parameter_dict,'lablist',['ANC', 'ALB', 'BLAST', 'CREAT', 'FLUID', 'HCT', 'HGB', 'PLT',
+                                       'RBC', 'UNCLASS', 'WBC', 'BILI', 'GFRBL', 'GFRNB'])
+add_to_dict(parameter_dict,'molelist',['FLT3', 'NPM1', 'CEBPA', 'MUT'])
 
 cnxdict = connect_to_mysql_db_prod('newplayground',parameter_dict)
 
 now = datetime.datetime.now()
 print(now.strftime("%Y-%m-%d"))
 
-# MainProcedureCalls(cnxdict)
+cnxdict['EchoSQL'] = 1
+MainProcedureCalls(cnxdict)
 
 # OutputProcedures(cnxdict)
 # CreatePlaygroundLabsTemplate(cnxdict)
-CreatePrevNextArrivalTable(cnxdict)
-UpdateArrivalIdMapping(cnxdict)
+# CreatePrevNextArrivalTable(cnxdict)
+# UpdateArrivalIdMapping(cnxdict)
+# CreatePrevNextArrivalTable(cnxdict)
+# UpdateArrivalIdMapping(cnxdict)
 # CreatePlaygroundMolecularTemplate(cnxdict)
 # AssociateLabs(cnxdict)
 # BuildRedCapDictionary(cnxdict)
 # DownloadPlaygroundForRedCapUpload(cnxdict)
+
+"""
+Code to get HCT and ECOG
+SELECT a.arrival_id
+    , b.EncECOG_Score
+    , a.ptmrn
+    , a.patientid
+    , a.ptlastname
+ FROM playgrounddatabase.playground a
+    LEFT JOIN caisis.vdatasetencounters b
+    ON a.patientid = b.patientid 
+        and abs(timestampdiff(day,a.arrivaldate,b.encdate)) < 3 
+        WHERE b.encdate IS NOT NULL; 
+        
+        
+SELECT  a.arrival_id, a.patientid, a.arrivaldate
+    , group_concat(c.ProcName
+        , IF(ProcCellSource IS NULL, "", concat(" from ",ProcCellSource))
+        , IF(ProcDonMatch   IS NULL, "", concat(" (",ProcDonMatch,")"))
+        , IF(ProcDate       IS NULL, "", concat(" on ",date_format(procdate,'%m/%d/%Y'))) SEPARATOR '\n\r')
+    AS HCTProcedure
+    from playgrounddatabase.playground a
+    LEFT JOIN caisis.vdatasethctproc b
+    ON a.PatientId = b.PatientId
+    LEFT JOIN (
+        SELECT * FROM caisis.vdatasetprocedures 
+        WHERE ProcName = 'HCT') c
+    ON a.PatientId = c.PatientId and b.ProcedureId = c.ProcedureId
+    GROUP BY a.arrival_id
+    ORDER BY a.arrival_id, ProcDate; 
+
+
+
+"""
