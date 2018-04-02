@@ -185,33 +185,58 @@ def get_caisis_tables():
     """
 
     tbllist = """
-        vDatasetAllLabTests
-        vDatasetCategories
-        vDatasetComorbidities
-        vDatasetDiagnostics
-        vDatasetEncounters
-        vDatasetEncReviewOfSystems
-        vDatasetHCTProc
-        vDatasetLabTests
-        vDatasetMedicalTherapy
-        vDatasetMedTxAdministration
-        vDatasetPathology
-        vDatasetPathTest
-        vDatasetPatientProtocols
+        LabTestIndex
+        vDatasetStatus
+        vDatasetRadiationTherapy
         vDatasetPatientProtocolStatus
+        vDatasetPatientProtocols
+        vDatasetMedTxAdministration
+        vDatasetMedicalTherapy
+        vDatasetHCTProc
+        vDatasetProcedures
+        vDatasetEncReviewOfSystems
+        vDatasetEncounters
+        vDatasetDiagnostics
+        vDatasetComorbidities
+        vDatasetCategories
+        vDatasetProtocols
+        vDatasetPathTest
+        vDatasetMolecularLabTests
+        MolecularLabs
+        vDatasetLabTests
+        vDatasetLastVisit
+        vDatasetAllLabTests
+        vDatasetPathology
         vDatasetPatients
         vDatasetPatientsNoNames
-        vDatasetProcedures
-        vDatasetProtocols
-        vDatasetRadiationTherapy
-        vDatasetStatus
-        vDatasetLastVisit
-        MolecularLabs
-        LabTestIndex
+        PatientsAccessed
+        NewPatientsAccessed
+        ALLKaryo
+        vDatasetAspergillus
+        vdatasetMPN
+        HotSpot
+        Platelet
+        Mutation
+        LabPrefix
+        anc1000counts
+        anc500counts
+        plt100counts
+        plt50counts
+        plt20counts
+        anccounts
+        pltcounts
+        ancnadir
+        pltnadir
+        nadir
+        nadirtemp
+        MostRecentPath
+        MostRecentLab
+        MasumiPopulation
     """
 
     tbllist = """
-        ALLKaryo
+        MutationLabs
+        vDatasetMutationLabTests
     """
 
     print('-- Moving Caisis tables to MySQL')
@@ -224,7 +249,7 @@ def get_caisis_tables():
             mode = 'replace'
             indexupdate = True
             tempsql = """SELECT * FROM [WorkDBProd]..[{}]""".format(tbl)
-            if tbl == 'vdatasetlabtests':
+            if False and tbl == 'vdatasetlabtests':
                 """
                     THIS A SHORT CUT
                     This if statement switches from all rows to append mode so that just those that need to be appended
@@ -234,6 +259,7 @@ def get_caisis_tables():
                 tempsql     = """SELECT * FROM [WorkDBProd]..[{}] WHERE LabTestCategory IN ('BILI','GFRBL','GFRNB')  """.format(tbl)
                 mode        = 'append'
                 indexupdate = False
+
             print ('-- Create dataframe from caisis table {0}'.format(tbl))
 
             # for chunk in dosqlread(tempsql, cnxdict):

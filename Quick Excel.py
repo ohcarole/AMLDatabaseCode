@@ -5,26 +5,12 @@ reload(sys)
 sys.setdefaultencoding('utf8')
 
 cnxdict = connect_to_mysql_db_prod('temp')
-filedescription = 'RedCap ECOG'
+filedescription = 'all mutation'
 filename='{} Workbook'.format(filedescription)[0:28]
 
 sqlcmd = """
-SELECT  a.arrival_id, a.patientid, a.arrivaldate
-    , group_concat(c.ProcName
-        , IF(ProcCellSource IS NULL, "", concat(" from ",ProcCellSource))
-        , IF(ProcDonMatch   IS NULL, "", concat(" (",ProcDonMatch,")"))
-        , IF(ProcDate       IS NULL, "", concat(" on ",date_format(procdate,'%m/%d/%Y'))) SEPARATOR '\n\r')
-    AS HCTProcedure
-    from playgrounddatabase.playground a
-    LEFT JOIN caisis.vdatasethctproc b
-    ON a.PatientId = b.PatientId
-    LEFT JOIN (
-        SELECT * FROM caisis.vdatasetprocedures 
-        WHERE ProcName = 'HCT') c
-    ON a.PatientId = c.PatientId and b.ProcedureId = c.ProcedureId
-    GROUP BY a.arrival_id
-    ORDER BY a.arrival_id, ProcDate; 
-"""
+SELECT * FROM caisis.playgroundallmutation ;
+    """
 cnxdict['out_filepath'] = buildfilepath(cnxdict, filename='{} Workbook'.format(filedescription))
 print(cnxdict['out_filepath'])
 

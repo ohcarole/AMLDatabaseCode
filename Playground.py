@@ -443,9 +443,9 @@ def CreatePlaygroundTemplate(cnxdict):
     dosqlexecute(cnxdict)
 
 
-def CreatePlaygroundMolecularTemplate(cnxdict):
+def CreatePlaygroundMutationTemplate(cnxdict):
     """
-        Builds a template for molecular testing results associated with each arrival for each
+        Builds a template for molecular mutation testing results associated with each arrival for each
         timepoint in the timepoint list.
     :param cnxdict:
     :return:
@@ -455,12 +455,12 @@ def CreatePlaygroundMolecularTemplate(cnxdict):
 
     cnxdict['sql'] = """
         /*
-            Identifies arrival id's to target when looking for molecular data
+            Identifies arrival id's to target when looking for molecular mutation data
             the structure expands during with a field list built during the 
             for loop iterating the timepointlist.
         */
-        DROP TABLE IF EXISTS caisis.`PlaygroundMolecularStru` ;
-        CREATE TABLE caisis.`PlaygroundMolecularStru`
+        DROP TABLE IF EXISTS caisis.`PlaygroundMutationStru` ;
+        CREATE TABLE caisis.`PlaygroundMutationStru`
             SELECT b.`arrival_id`
             FROM `temp`.`PlaygroundTemp` a 
             JOIN caisis.arrivalidmapping b
@@ -476,10 +476,10 @@ def CreatePlaygroundMolecularTemplate(cnxdict):
         Using deep copy here because we are going to actually modify the list and don't want to
         modify the list stored in the connection permanently
     """
-    molelist = copy.deepcopy(cnxdict['molelist'])
+    mutlist = copy.deepcopy(cnxdict['mutlist'])
 
     #   special fields associated with FLT3
-    molelist[molelist.index('FLT3')] = ['FLT3', ['BasesTest`       TINYTEXT',
+    mutlist[mutlist.index('FLT3')] = ['FLT3', ['BasesTest`       TINYTEXT',
                                                  'Bases`           TINYTEXT',
                                                  'RatioTest`       TINYTEXT',
                                                  'Ratio`           TINYTEXT']]
@@ -495,30 +495,43 @@ def CreatePlaygroundMolecularTemplate(cnxdict):
                           'Summary`          TINYTEXT', ]
 
 
-
     for timepoint in cnxdict['timelist']:
-        for moletest in molelist:
-            resultinsertlist = ""
-            flt3fieldlist = []
-            if moletest[0] == 'FLT3':  # add-on special fields if FLT3
-                resultfieldlist = standardfieldlist + moletest[1]
-                moletest = moletest[0]
-            for resultfield in resultfieldlist:  # fields to insert in playground molecular table
-                insertfield     = "{0}, ADD COLUMN `{1}{2}{3}".format(' '*12,moletest,timepoint,resultfield)
-                resultinsertlist   = resultinsertlist + insertfield + '\n'
-
-            # switched all fields to lower case to make it easier to export into RedCap later
-            cnxdict['sql'] = """
-                ALTER TABLE `caisis`.`PlaygroundMolecularStru` {0} ;
-            """.format(resultinsertlist.strip(', ').lower())
-            dosqlexecute(cnxdict)
-
-            cnxdict['sql'] = """
-                DROP TABLE IF EXISTS caisis.`PlaygroundMolecular` ;
-                CREATE TABLE caisis.`PlaygroundMolecular`
-                    SELECT * FROM `caisis`.`PlaygroundMolecularStru`
+        for muttest in mutlist:
             """
-            dosqlexecute(cnxdict)
+                I am excluding the generic mutation from this table which is meant for the common AML mutations FLT3, 
+                NPM1 and CEBPA.  Other mutations will be reported in the table "playgroundallmuation" rather than 
+                this table "playgroundmutation"
+            """
+            if muttest != 'MUT':
+                currtest = muttest
+                if currtest == 'CEBPA':
+                    pass
+                resultinsertlist = ""
+                # flt3fieldlist = []
+                if muttest[0] == 'FLT3':  # add-on special fields if FLT3
+                    resultfieldlist = standardfieldlist + muttest[1]
+                    currtest = muttest[0]
+                elif currtest == 'CEBPA':  # add-on special fields if FLT3
+                        resultfieldlist = standardfieldlist + ['AllelicType`  TINYTEXT']
+                else:
+                    resultfieldlist = standardfieldlist
+
+                for resultfield in resultfieldlist:  # fields to insert in playground molecular table
+                    insertfield     = "{0}, ADD COLUMN `{1}{2}{3}".format(' '*12,currtest,timepoint,resultfield)
+                    resultinsertlist   = resultinsertlist + insertfield + '\n'
+
+                # switched all fields to lower case to make it easier to export into RedCap later
+                cnxdict['sql'] = """
+                    ALTER TABLE `caisis`.`PlaygroundMutationStru` {0} ;
+                """.format(resultinsertlist.strip(', ').lower())
+                dosqlexecute(cnxdict)
+
+    cnxdict['sql'] = """
+        DROP TABLE IF EXISTS caisis.`PlaygroundMutation` ;
+        CREATE TABLE caisis.`PlaygroundMutation`
+            SELECT * FROM `caisis`.`PlaygroundMutationStru`
+    """
+    dosqlexecute(cnxdict)
 
 
 def CreatePlaygroundLabsTemplate(cnxdict):
@@ -1391,6 +1404,7 @@ def AssociatePerformanceStatus(cnxdict):
         Performance status is stored in the "encounters" table
     """
     cnxdict['sql'] = """ 
+        DROP TABLE IF EXISTS temp.encounter ;
         CREATE TABLE temp.encounter
             SELECT a.arrival_id
                 , b.EncECOG_Score
@@ -2258,7 +2272,7 @@ def CreateEventDateRange(cnxdict):
     return
 
 
-def CreateMolecularTable(cnxdict):
+def CreateMutationTable(cnxdict):
     printtext('stack')
     cnxdict['sql']="""
         /***********************************************************************************
@@ -2285,7 +2299,7 @@ def CreateMolecularTable(cnxdict):
                 CAST(NULL AS CHAR(50)) AS Summary,
                 `LabTestId` AS `LabTestId`,
                 `LabAccessionNum` AS `LabAccessionNum`
-            FROM  `caisis`.`molecularlabs`
+            FROM  `caisis`.`MutationLabs`
             WHERE `LabTestCategory` = 'NPM1'
                     AND `LabTest` LIKE '%result%'
                     AND UPPER(LabResult) NOT RLIKE 'DATA ENTRY CORRECTION|DUPLICATE|MISLOGGED|REORDER|WRONG|TEST NOT NEEDED'
@@ -2295,7 +2309,7 @@ def CreateMolecularTable(cnxdict):
         DROP TABLE IF EXISTS molecular.npm1specimen ;
         CREATE TABLE molecular.npm1specimen
             SELECT LabGroupId, LabResult
-                FROM  `caisis`.`molecularlabs`
+                FROM  `caisis`.`MutationLabs`
                 WHERE `LabTestCategory` = 'NPM1' 
                 AND   `LabTest`   LIKE '%spec%'
                 AND   `LabResult` NOT RLIKE 'DUPLICATE|REORDER|SEE|WRONG|NOT PROVIDED|MISLOGGED' ;
@@ -2304,7 +2318,7 @@ def CreateMolecularTable(cnxdict):
         DROP TABLE IF EXISTS molecular.npm1interpretation ;
         CREATE TABLE molecular.npm1interpretation
             SELECT LabGroupId, LabTest, LabResult
-                FROM  `caisis`.`molecularlabs`
+                FROM  `caisis`.`MutationLabs`
                 WHERE `LabTestCategory` = 'NPM1' 
                 AND   UPPER(`LabTest`) RLIKE 'INTERP'
                 AND   `LabResult` NOT RLIKE 'DUPLICATE|REORDER|SEE|WRONG|MISLOGGED|NOT SUFFICIENT|TEST NOT NEEDED' ;
@@ -2334,7 +2348,7 @@ def CreateMolecularTable(cnxdict):
                 `PatientId`,
                 `LabTest`   AS `RatioTest`,
                 `LabResult` AS `Ratio`
-                FROM `caisis`.`molecularlabs` 
+                FROM `caisis`.`MutationLabs` 
                 WHERE `LabTest` LIKE '%ratio%'
                     AND `LabTestCategory` = 'FLT3' 
                     AND `LabResult` NOT LIKE '%see%' 
@@ -2347,7 +2361,7 @@ def CreateMolecularTable(cnxdict):
                 `PatientId`,
                 `LabTest` AS `BasesTest`,
                 `LabResult` AS `Bases`
-                FROM `caisis`.`molecularlabs` 
+                FROM `caisis`.`MutationLabs` 
                     WHERE `LabTestCategory` = 'FLT3' 
                     AND `LabResult` LIKE '%base%';
         
@@ -2365,7 +2379,7 @@ def CreateMolecularTable(cnxdict):
                 CAST(NULL AS CHAR(50)) AS Interpretation,
                 `result`.`LabTestId` AS `LabTestId`,
                 `result`.`LabAccessionNum` AS `LabAccessionNum`
-                FROM `caisis`.`molecularlabs` `result`
+                FROM `caisis`.`MutationLabs` `result`
                 WHERE `result`.`LabTestCategory` = 'FLT3' 
                 AND UPPER(`result`.`LabTest`) RLIKE 'RESULT|ITD|TKD' 
                 AND UPPER(`result`.`LabTest`) NOT RLIKE 'RATIO|LENGTH' 
@@ -2384,7 +2398,7 @@ def CreateMolecularTable(cnxdict):
         DROP TABLE IF EXISTS molecular.flt3specimen ;
         CREATE TABLE molecular.flt3specimen
             SELECT LabGroupId, LabResult
-                FROM  `caisis`.`molecularlabs`
+                FROM  `caisis`.`MutationLabs`
                 WHERE `LabTestCategory` = 'FLT3' 
                 AND   `LabTest`   LIKE '%spec%'
                 AND   `LabResult` NOT RLIKE 'DUPLICATE|REORDER|SEE|WRONG' ;
@@ -2393,7 +2407,7 @@ def CreateMolecularTable(cnxdict):
         DROP TABLE IF EXISTS molecular.flt3interpretation ;
         CREATE TABLE molecular.flt3interpretation
             SELECT LabGroupId, LabTest, LabResult
-                FROM  `caisis`.`molecularlabs`
+                FROM  `caisis`.`MutationLabs`
                 WHERE `LabTestCategory` = 'FLT3' 
                 AND   UPPER(`LabTest`) RLIKE 'INTERP'
                 AND   `LabResult` NOT RLIKE 'DUPLICATE|REORDER|SEE|WRONG|MISLOGGED|NOT SUFFICIENT' ;
@@ -2414,9 +2428,9 @@ def CreateMolecularTable(cnxdict):
                 , c.RatioTest
                 , c.Ratio
                 , a.Interpretation
-                , GROUP_CONCAT(concat( a.`LabTest`, ' (', a.`LabResult`, '); ',
-                    IF(b.BasesTest IS NOT NULL,concat(b.`BasesTest`, ' (', b.`Bases`, '); '),''),
-                    IF(c.RatioTest IS NOT NULL,concat(c.`RatioTest`, ' (', c.`Ratio`, '); '),'')
+                , GROUP_CONCAT(concat( RTRIM(a.`LabTest`), ' (', RTRIM(a.`LabResult`), '); ',
+                    IF(b.BasesTest IS NOT NULL,concat(RTRIM(b.`BasesTest`), ' (', RTRIM(b.`Bases`), '); '),''),
+                    IF(c.RatioTest IS NOT NULL,concat(RTRIM(c.`RatioTest`), ' (', RTRIM(c.`Ratio`), '); '),'')
                 )) AS Summary
                 , a.LabTestId
                 , a.LabAccessionNum
@@ -2467,7 +2481,7 @@ def CreateMolecularTable(cnxdict):
                 CAST(NULL AS CHAR(50)) AS Summary,
                 `LabTestId` AS `LabTestId`,
                 `LabAccessionNum` AS `LabAccessionNum`
-            FROM  `caisis`.`molecularlabs`
+            FROM  `caisis`.`MutationLabs`
             WHERE `LabTestCategory` = 'CEBPA' 
                     AND UPPER(LabTest)   NOT RLIKE 'METHOD|REVIEWED BY'
                     AND (UPPER(LabTest)   RLIKE 'RESULT' OR LabTest = 'CEBPA')
@@ -2478,7 +2492,7 @@ def CreateMolecularTable(cnxdict):
         DROP TABLE IF EXISTS molecular.cebpaspecimen ;
         CREATE TABLE molecular.cebpaspecimen
             SELECT LabGroupId, LabResult
-                FROM  `caisis`.`molecularlabs`
+                FROM  `caisis`.`MutationLabs`
                 WHERE `LabTestCategory` = 'CEBPA' 
                 AND   `LabTest`   LIKE '%spec%'
                 AND   UPPER(`LabResult`) NOT RLIKE 'DATA ENTRY CORRECTION|DUPLICATE|REORDER|SEE|WRONG|NOT PROVIDED|MISLOGGED' ;
@@ -2487,7 +2501,7 @@ def CreateMolecularTable(cnxdict):
         DROP TABLE IF EXISTS molecular.cebpainterpretation ;
         CREATE TABLE molecular.cebpainterpretation
             SELECT LabGroupId, LabTest, LabResult
-                FROM  `caisis`.`molecularlabs`
+                FROM  `caisis`.`MutationLabs`
                 WHERE `LabTestCategory` = 'CEBPA' 
                 AND   UPPER(`LabTest`) RLIKE 'INTERPR'
                 AND   UPPER(`LabResult`) NOT RLIKE 'BILLED|DATA ENTRY CORRECTION|DUPLICATE|REORDER|WRONG|MISLOGGED|NOT SUFFICIENT|TEST NOT NEEDED' ;
@@ -2518,116 +2532,331 @@ def CreateMolecularTable(cnxdict):
     return
 
 
+def CreatePlaygroundAllMutationTable(cnxdict):
+    """
+
+    :param cnxdict:
+    :return:
+    """
+    mutlist = "\',\'".join(map(str, cnxdict['mutlist']))
+    """
+        DROP TABLE IF EXISTS caisis.playgroundallmutation ;
+        CREATE TABLE caisis.playgroundallmutation
+            SELECT arrival_id
+                , a.PtMRN
+                , a.PatientId
+                , a.TestMonth
+                , date_format(a.LabDate,'%Y-%m-%d') AS LabDate
+                , a.LabTime
+                , a.LabTestCategory
+                , a.LabTestSubCategory
+                , RTRIM(a.Result) AS LabResult
+                , a.Interpretation
+                , RTRIM(a.Length) AS Length
+                , RTRIM(a.Ratio) AS Ratio
+                , RTRIM(a.AllelicType) AS AllelicType
+                , RTRIM(a.Specimen) AS Specimen
+                , a.LabGroupId
+            FROM caisis.vdatasetmutationlabtests a
+            JOIN caisis.playground b on a.patientid = b.patientid
+            WHERE UPPER(a.LabTestCategory) IN ('{0}')
+            ORDER BY b.PtMRN, a.LabDate;
+    """
+    cnxdict['sql'] = """
+        DROP TABLE IF EXISTS caisis.playgroundallmutation ;
+        CREATE TABLE caisis.playgroundallmutation
+            SELECT x.arrival_id
+                , GROUP_CONCAT(DISTINCT 
+                        CASE 
+                            WHEN y.Result LIKE '%positive%'    THEN y.LabTestSubCategory
+                            ELSE NULL
+                        END) AS EverPositiveMutationList
+                , GROUP_CONCAT(y.PositiveLabSummary SEPARATOR '\r==============\r') AS PositiveMutation
+                , GROUP_CONCAT(y.NegativeLabSummary ORDER BY LabDate SEPARATOR '\r==============\r') AS NegativeMutation
+                , GROUP_CONCAT(y.OtherLabSummary SEPARATOR '\r==============\r') AS OtherMutation
+                FROM (SELECT * FROM caisis.playground ) x
+                      LEFT JOIN 
+                            (SELECT arrival_id
+                                , RTRIM(a.LabTestSubCategory) AS LabTestSubCategory
+                                , CASE
+                                    WHEN lower(a.result)  LIKE '%negative%' THEN NULL
+                                    WHEN lower(a.result)  LIKE '%positive%' 
+                                        OR rtrim( lower(a.result)) LIKE '%JAK2 V617F mutation detected%'
+                                    THEN 
+                                        CONCAT( rtrim(a.LabTestSubCategory)
+                                        ,CASE WHEN a.LabDate IS NULL THEN ''
+                                            ELSE CONCAT(' ',date_format(a.LabDate,'%Y-%m-%d'),CHAR(13)) END
+                                        ,CASE WHEN a.Result IS NULL THEN ''
+                                            ELSE CONCAT('Result: ',rtrim(a.Result),CHAR(13)) END
+                                        ,CASE WHEN a.Ratio IS NULL THEN ''
+                                            ELSE CONCAT('Ratio: ',rtrim(a.Ratio),CHAR(13)) END
+                                        ,CASE WHEN a.Length IS NULL THEN ''
+                                            ELSE CONCAT('Length: ',rtrim(a.Length),CHAR(13)) END
+                                        ,CASE WHEN a.Interpretation IS NULL THEN ''
+                                            ELSE CONCAT('Interpretation: ',rtrim(a.Interpretation),CHAR(13)) END
+                                        ,CASE WHEN a.AllelicType IS NULL THEN ''
+                                            ELSE CONCAT('Allelic Type: ',rtrim(a.AllelicType),CHAR(13)) END
+                                    ) ELSE NULL
+                                END AS PositiveLabSummary 
+            
+                                , CASE
+                                    WHEN lower(a.result)  LIKE '%positive%' 
+                                        OR rtrim( lower(a.result)) LIKE '%JAK2 V617F mutation detected%' THEN NULL
+                                    WHEN (lower(a.result)  LIKE '%negative%' OR lower(a.result)  LIKE '%negattive%' OR lower(a.result)  LIKE '%negtaive%' )
+                                        OR (LTRIM(RTRIM(a.LabTestSubCategory)) IN ('CALR','JCV','JAK2','BCR/ABL','NPM1','KIT','FLT3','CEBPA') 
+                                                AND (rtrim(lower(a.result)) LIKE '%not detected%' 
+                                                     OR rtrim(lower(a.result)) LIKE '%test not done%'
+                                                     OR rtrim(lower(a.result)) LIKE '%not required%'
+                                                     OR rtrim(lower(a.result)) LIKE '%no amplifiable dna%'
+                                                     OR rtrim(lower(a.result)) LIKE '%no quantifiable rna%'
+                                                     OR rtrim(lower(a.result)) LIKE '%no mutation detected%'
+                                                     OR rtrim( lower(a.result)) LIKE '%none detected%'
+                                                    )
+                                            )
+                                    THEN 
+                                        CONCAT( rtrim(a.LabTestSubCategory)
+                                        ,CASE WHEN a.LabDate IS NULL THEN ''
+                                            ELSE CONCAT(' ',date_format(a.LabDate,'%Y-%m-%d'),CHAR(13)) END
+                                        ,CASE WHEN a.Result IS NULL THEN ''
+                                            ELSE CONCAT('Result: ',rtrim(a.Result),CHAR(13)) END
+                                        ,CASE WHEN a.Ratio IS NULL THEN ''
+                                            ELSE CONCAT('Ratio: ',rtrim(a.Ratio),CHAR(13)) END
+                                        ,CASE WHEN a.Length IS NULL THEN ''
+                                            ELSE CONCAT('Length: ',rtrim(a.Length),CHAR(13)) END
+                                        ,CASE WHEN a.Interpretation IS NULL THEN ''
+                                            ELSE CONCAT('Interpretation: ',rtrim(a.Interpretation),CHAR(13)) END
+                                        ,CASE WHEN a.AllelicType IS NULL THEN ''
+                                            ELSE CONCAT('Allelic Type: ',rtrim(a.AllelicType),CHAR(13)) END
+                                    ) ELSE NULL
+                                END AS NegativeLabSummary 
+            
+            
+                                , CASE
+                                    WHEN lower(a.result)  LIKE '%positive%' THEN NULL
+                                    WHEN rtrim( lower(a.result)) LIKE '%JAK2 V617F mutation detected%' THEN NULL
+                                    WHEN (lower(a.result)  LIKE '%negative%' OR lower(a.result)  LIKE '%negattive%' OR lower(a.result)  LIKE '%negtaive%' ) THEN NULL
+                                    WHEN (LTRIM(RTRIM(a.LabTestSubCategory)) IN ('CALR','JCV','JAK2','BCR/ABL','NPM1','KIT','FLT3','CEBPA') 
+                                                AND (rtrim(lower(a.result)) LIKE '%not detected%' 
+                                                     OR rtrim(lower(a.result)) LIKE '%test not done%'
+                                                     OR rtrim(lower(a.result)) LIKE '%not required%'
+                                                     OR rtrim(lower(a.result)) LIKE '%no amplifiable dna%'
+                                                     OR rtrim(lower(a.result)) LIKE '%no quantifiable rna%'
+                                                     OR rtrim(lower(a.result)) LIKE '%no mutation detected%'
+                                                     OR rtrim(lower(a.result)) LIKE '%none detected%'
+                                                    )
+                                            )
+                                    THEN NULL
+                                    ELSE
+                                        CONCAT( rtrim(a.LabTestSubCategory)
+                                        ,CASE WHEN a.LabDate IS NULL THEN ''
+                                            ELSE CONCAT(' ',date_format(a.LabDate,'%Y-%m-%d'),CHAR(13)) END
+                                        ,CASE WHEN a.Result IS NULL THEN ''
+                                            ELSE CONCAT('Result: ',rtrim(a.Result),CHAR(13)) END
+                                        ,CASE WHEN a.Ratio IS NULL THEN ''
+                                            ELSE CONCAT('Ratio: ',rtrim(a.Ratio),CHAR(13)) END
+                                        ,CASE WHEN a.Length IS NULL THEN ''
+                                            ELSE CONCAT('Length: ',rtrim(a.Length),CHAR(13)) END
+                                        ,CASE WHEN a.Interpretation IS NULL THEN ''
+                                            ELSE CONCAT('Interpretation: ',rtrim(a.Interpretation),CHAR(13)) END
+                                        ,CASE WHEN a.AllelicType IS NULL THEN ''
+                                            ELSE CONCAT('Allelic Type: ',rtrim(a.AllelicType),CHAR(13)) END ) 
+                                END AS OtherLabSummary 
+            
+            
+                                , RTRIM(a.Result) AS Result
+                                , RTRIM(a.Length) AS Length
+                                , RTRIM(a.Ratio) AS Ratio
+                                , date_format(a.LabDate,'%Y-%m-%d') AS LabDate
+                                , a.Interpretation as molecularlabinterpretation
+                                , RTRIM(a.AllelicType) AS molecularlaballelictype
+                                , a.Specimen as molecularlabspecimen
+                                , a.LabGroupId as molecularlabgroupid
+                                FROM caisis.vdatasetmutationlabtests a
+                            JOIN caisis.playground b on a.patientid = b.patientid 
+                            WHERE a.Result NOT LIKE '%YDETL%' 
+                                AND a.Result NOT LIKE '%misordered%' 
+                                AND a.Result NOT LIKE '%billed to%'
+                            ) y ON x.arrival_id = y.arrival_id
+                GROUP BY x.arrival_id
+                ORDER BY x.PtMRN, y.LabDate; 
+
+    """.format(mutlist)
+    dosqlexecute(cnxdict)
+    return
+
+
+def CreatePlaygroundLabSubTables(cnxdict):
+    printtext('stack')
+
+    for testname in cnxdict['lablist'] + cnxdict['mutlist']:
+        sourcetable = 'Playground{0}'.format(testname)
+        cnxdict['sql'] = """
+            DROP TABLE IF EXISTS caisis.{1} ;
+            CREATE TABLE caisis.{1}
+                SELECT * FROM caisis.vdatasetlabtests 
+                WHERE UPPER(LabTestCategory) = UPPER('{0}') ;
+            ALTER TABLE `caisis`.`{1}` 
+                ADD INDEX `PtMRN` (`PtMRN`(10) ASC),
+                ADD INDEX `PatientId` (`PatientId` ASC),
+                ADD INDEX `LabDate` (`LabDate` ASC),
+                ADD INDEX `LabGroupId` (`LabGroupId` ASC);
+
+        """.format(testname, sourcetable)
+        dosqlexecute(cnxdict)
+    return
+
+
 def AssociateLabs(cnxdict):
     printtext('stack')
-    timepointlist = ['Diagnosis','Arrival','Treatment','Response','Relapse']
-    testlist = cnxdict['lablist'] + cnxdict['molelist']
 
-    for testname in testlist:
-        sourcetable        = 'vdatasetlabtests'
+    for testname in cnxdict['lablist'] + cnxdict['mutlist']:
         var_interpretation = 'NULL'
         var_summary        = 'NULL'
         var_specimentype   = 'NULL'
         flt3fields         = ''
+        sourcetable        = 'Playground{0}'.format(testname)
+        ismolecular        = testname in cnxdict['mutlist']
 
-        ismolecular        = testname in cnxdict['molelist']
-        for timepoint in timepointlist:
-            targettable = 'Playground{0}Labs'.format(timepoint)
-            if ismolecular:
-                sourcetable        = 'vdatasetmolecular'
-                targettable        = 'PlaygroundMolecular'
-                var_interpretation = 'a.Interpretation'
-                var_summary        = 'a.Summary'
-                var_specimentype   = 'a.Interpretation'
-                if testname == 'FLT3':
-                    flt3fields = """
-                        , a.BasesTest 
-                        , a.Bases 
-                        , a.RatioTest 
-                        , a.Ratio  
-                    """
+        """
+            I am excluding the generic mutation from this table which is meant for the common AML mutations FLT3, 
+            NPM1 and CEBPA.  Other mutations will be reported in the table "playgroundallmuation" rather than 
+            this table "playgroundmutation"
+        """
+        if testname != 'MUT':
 
-            selectfieldlist = """a.LabTestCategory
-                        , '{0}' AS timepoint
-                        , MIN(ABS(TIMESTAMPDIFF(DAY,a.LabDate,b.TargetDate))) As DaysBetween
-                        , 'Yes' AS PrecedeTargetDate
-                        , b.arrival_id         
-                        , b.PatientId         
-                        , b.PtMRN         
-                        , a.LabGroupId         
-                        , a.LabDate         
-                        , {1} AS SpecimenType
-                        , a.LabTest         
-                        , a.LabResult         
-                        , a.LabUnits         
-                        {2}         
-                        , {3} AS Interpretation
-                        , {4} AS Summary         
-                        , b.StartDateRange         
-                        , b.TargetDate         
-                        , b.EndDateRange
-            """.format(timepoint,var_specimentype,flt3fields,var_interpretation,var_summary)
+            for timepoint in cnxdict['timelist']:
+                targettable = 'Playground{0}Labs'.format(timepoint)
+                moleupdatefields = ''
+                specialjoin = ''
 
+                selectfieldlist = """a.LabTestCategory
+                            , '{0}' AS timepoint
+                            , MIN(ABS(TIMESTAMPDIFF(DAY,a.LabDate,b.TargetDate))) As DaysBetween
+                            , 'Yes' AS PrecedeTargetDate
+                            , b.arrival_id         
+                            , b.PatientId         
+                            , b.PtMRN         
+                            , a.LabGroupId         
+                            , a.LabDate         
+                            , {1} AS SpecimenType
+                            , a.LabTest AS LabTest       
+                            , a.LabResult         
+                            , a.LabUnits         
+                            , {2} AS Interpretation
+                            , {3} AS Summary         
+                            , b.StartDateRange         
+                            , b.TargetDate         
+                            , b.EndDateRange
+                """.format(timepoint,var_specimentype,var_interpretation,var_summary)
 
-            cnxdict['sql'] = """
-                # on or before target date
-                DROP TABLE IF EXISTS temp.beforetargetdate ;
-                CREATE TABLE temp.beforetargetdate
-                    SELECT {3} FROM caisis.{2} a
-                    JOIN caisis.vdataseteventdaterange b ON a.PatientId = b.PatientId 
-                    WHERE UPPER(b.Event) = '{0}' 
-                        AND   UPPER(a.LabTestCategory) = '{1}' 
-                        AND a.LabDate BETWEEN b.StartDateRange AND b.TargetDate
-                    GROUP BY b.arrival_id, a.LabTest, ABS(TIMESTAMPDIFF(DAY,a.LabDate,b.TargetDate))
-                    ORDER BY b.arrival_id, a.LabTest, ABS(TIMESTAMPDIFF(DAY,a.LabDate,b.TargetDate)) ; 
+                if ismolecular:
+                    sourcetable = 'vdatasetmutationlabtests'  # 'vDatasetMolecular'
+                    targettable = 'PlaygroundMutation'
+                    var_interpretation = 'a.Interpretation'
+                    var_summary = 'a.Summary'
+                    var_specimentype = 'a.Interpretation'
+                    if testname == 'FLT3':
+                        flt3fields = """, c.BasesTest 
+                            , c.Bases 
+                            , c.RatioTest 
+                            , RTRIM(a.Ratio) AS Ratio"""
+
+                    selectfieldlist = """a.LabTestCategory
+                            , '{0}' AS timepoint
+                            , MIN(ABS(TIMESTAMPDIFF(DAY,a.LabDate,b.TargetDate))) As DaysBetween
+                            , 'Yes' AS PrecedeTargetDate
+                            , b.arrival_id         
+                            , b.PatientId         
+                            , b.PtMRN         
+                            , a.LabGroupId         
+                            , a.LabDate         
+                            , RTRIM(a.Specimen) AS SpecimenType
+                            , RTRIM(a.Result) AS LabResult    
+                            , c.LabTest AS LabTest
+                            , c.LabUnits         
+                            {1}
+                            , a.AllelicType
+                            , RTRIM(a.Interpretation) AS Interpretation
+                            , c.Summary
+                            , b.StartDateRange         
+                            , b.TargetDate         
+                            , b.EndDateRange""".format(timepoint,flt3fields.strip('\n'))
+
+                    specialjoin = """JOIN (SELECT * FROM caisis.vdatasetmutation WHERE LabTestCategory = '{0}') c 
+                                ON a.PatientId = c.PatientId and a.LabGroupId = c.LabGroupId and a.LabTestCategory = c.LabTestCategory""".format(testname)
+
+                cnxdict['sql'] = """
+                    # on or before target date
+                    DROP TABLE IF EXISTS temp.beforetargetdate ;
+                    CREATE TABLE temp.beforetargetdate
+                        SELECT {3} 
+                            FROM caisis.{2} a
+                            JOIN caisis.vdataseteventdaterange b ON a.PatientId = b.PatientId 
+                            {4}
+                            WHERE UPPER(b.Event) =  UPPER('{0}')
+                                AND   UPPER(a.LabTestCategory) = UPPER('{1}') 
+                                AND a.LabDate BETWEEN b.StartDateRange AND b.TargetDate
+                            GROUP BY b.arrival_id, LabTest, ABS(TIMESTAMPDIFF(DAY,a.LabDate,b.TargetDate))
+                            ORDER BY b.arrival_id, LabTest, ABS(TIMESTAMPDIFF(DAY,a.LabDate,b.TargetDate)) ; 
+            
+                    # after target date
+                    DROP TABLE IF EXISTS temp.aftertargetdate ;
+                    CREATE TABLE temp.aftertargetdate
+                        SELECT {3} 
+                            FROM caisis.{2} a
+                            JOIN caisis.vdataseteventdaterange b ON a.PatientId = b.PatientId 
+                            {4}
+                            WHERE UPPER(b.Event) = UPPER('{0}') 
+                                AND   UPPER(a.LabTestCategory) = UPPER('{1}') 
+                                AND   a.LabDate BETWEEN b.TargetDate AND b.EndDateRange
+                            GROUP BY b.arrival_id, LabTest, ABS(TIMESTAMPDIFF(DAY,a.LabDate,b.TargetDate))
+                            ORDER BY b.arrival_id, LabTest, ABS(TIMESTAMPDIFF(DAY,a.LabDate,b.TargetDate)) ; 
         
-                # after target date
-                DROP TABLE IF EXISTS temp.aftertargetdate ;
-                CREATE TABLE temp.aftertargetdate
-                    SELECT {3} FROM caisis.{2} a
-                    JOIN caisis.vdataseteventdaterange b ON a.PatientId = b.PatientId 
-                    WHERE UPPER(b.Event) = '{0}' 
-                        AND   UPPER(a.LabTestCategory) = '{1}' 
-                        AND   a.LabDate BETWEEN b.TargetDate AND b.EndDateRange
-                    GROUP BY b.arrival_id, a.LabTest, ABS(TIMESTAMPDIFF(DAY,a.LabDate,b.TargetDate))
-                    ORDER BY b.arrival_id, a.LabTest, ABS(TIMESTAMPDIFF(DAY,a.LabDate,b.TargetDate)) ; 
-    
-                DROP TABLE IF EXISTS temp.{0}relevantlab ;
-                CREATE TABLE temp.{0}relevantlab    
-                    SELECT * FROM temp.beforetargetdate 
-                        UNION SELECT * FROM temp.aftertargetdate ;
-                        
-                ALTER TABLE temp.{0}relevantlab
-                    ADD INDEX `Arrival_Id`  (`Arrival_Id` ASC);
-                
-                DROP TABLE IF EXISTS temp.beforetargetdate ;
-                DROP TABLE IF EXISTS temp.aftertargetdate ;
-            """.format(timepoint.upper(), testname.upper(), sourcetable,selectfieldlist)
-            dosqlexecute(cnxdict)
+                    DROP TABLE IF EXISTS temp.relevantlab ;
+                    CREATE TABLE temp.relevantlab    
+                        SELECT * FROM temp.beforetargetdate 
+                            UNION SELECT * FROM temp.aftertargetdate ;
+                            
+                    ALTER TABLE temp.relevantlab
+                        ADD INDEX `Arrival_Id`  (`Arrival_Id` ASC);
+                    
+                    DROP TABLE IF EXISTS temp.beforetargetdate ;
+                    DROP TABLE IF EXISTS temp.aftertargetdate ;
+                """.format(timepoint, testname, sourcetable,selectfieldlist,specialjoin)
+                dosqlexecute(cnxdict)
 
-            if testname == 'FLT3':
-                flt3fields = """
-                            , a.{0}{1}BasesTest       = b.BasesTest 
-                            , a.{0}{1}Bases           = b.Bases 
-                            , a.{0}{1}RatioTest       = b.RatioTest 
-                            , a.{0}{1}Ratio           = b.Ratio  
-                """.format(testname, timepoint)
-            cnxdict['sql'] = """
-                UPDATE caisis.{3} a, temp.{1}relevantlab b
-                        SET   a.{0}{1}LabDate         = b.LabDate 
-                            , a.{0}{1}LabResult       = b.LabResult
-                            , a.{0}{1}LabGroupId      = b.LabGroupId 
-                            , a.{0}{1}LabDate         = b.LabDate
-                            , a.{0}{1}SpecimenType    = b.SpecimenType
-                            , a.{0}{1}LabTest         = b.LabTest 
-                            , a.{0}{1}LabResult       = b.LabResult
-                            , a.{0}{1}LabUnits        = b.LabUnits
-                            {2}
-                            , a.{0}{1}Interpretation  = b.Interpretation 
-                            , a.{0}{1}Summary         = b.Summary 
-                        WHERE a.arrival_id = b.arrival_id ;
-            """.format(testname, timepoint, flt3fields, targettable)
-            dosqlexecute(cnxdict)
+                if testname == 'NPM1':
+                    pass
+
+                if testname == 'FLT3':
+                    moleupdatefields = """
+                                , a.{0}{1}BasesTest       = b.BasesTest 
+                                , a.{0}{1}Bases           = b.Bases 
+                                , a.{0}{1}RatioTest       = b.RatioTest 
+                                , a.{0}{1}Ratio           = b.Ratio  
+                    """.format(testname, timepoint)
+                elif testname == 'CEBPA':
+                    moleupdatefields = """
+                                , a.{0}{1}AllelicType     = b.AllelicType  
+                    """.format(testname, timepoint)
+
+                cnxdict['sql'] = """
+                    UPDATE caisis.{0} a, temp.relevantlab b
+                            SET   a.{1}{2}LabDate         = b.LabDate 
+                                , a.{1}{2}LabResult       = b.LabResult
+                                , a.{1}{2}LabGroupId      = b.LabGroupId 
+                                , a.{1}{2}LabDate         = b.LabDate
+                                , a.{1}{2}SpecimenType    = b.SpecimenType
+                                , a.{1}{2}LabTest         = b.LabTest 
+                                , a.{1}{2}LabResult       = b.LabResult
+                                , a.{1}{2}LabUnits        = b.LabUnits
+                                {3}
+                                , a.{1}{2}Interpretation  = b.Interpretation 
+                                , a.{1}{2}Summary         = b.Summary 
+                            WHERE a.arrival_id = b.arrival_id ;
+                    # DROP TABLE IF EXISTS temp.relevantlab ;
+                """.format(targettable, testname, timepoint, moleupdatefields)
+                dosqlexecute(cnxdict)
 
 
 def PushPlaygroundTables(cnxdict,targetdatabase='jake_caisis'):
@@ -2642,9 +2871,9 @@ def PushPlaygroundTables(cnxdict,targetdatabase='jake_caisis'):
                 SELECT * FROM caisis.playground ;
 
 
-            DROP TABLE IF EXISTS {1}.playgroundmolecular ;
-            CREATE TABLE {1}.playgroundmolecular
-                SELECT * FROM caisis.playgroundmolecular ;
+            DROP TABLE IF EXISTS {1}.PlaygroundMutation ;
+            CREATE TABLE {1}.PlaygroundMutation
+                SELECT * FROM caisis.PlaygroundMutation ;
 
         """.format(timestring, targetdatabase)
         dosqlexecute(cnxdict)
@@ -2664,9 +2893,9 @@ def PushPlaygroundTables(cnxdict,targetdatabase='jake_caisis'):
             SELECT * FROM caisis.playground ;
 
 
-        DROP TABLE IF EXISTS {1}.playgroundmolecular_{0} ;
-        CREATE TABLE {1}.playgroundmolecular_{0}
-            SELECT * FROM caisis.playgroundmolecular ;
+        DROP TABLE IF EXISTS {1}.PlaygroundMutation_{0} ;
+        CREATE TABLE {1}.PlaygroundMutation_{0}
+            SELECT * FROM caisis.PlaygroundMutation ;
 
     """.format(timestring, targetdatabase)
     dosqlexecute(cnxdict)
@@ -2694,7 +2923,10 @@ def BuildRedCapDictionary(cnxdict):
                 ,'playgroundtreatmentlabs'
                 ,'playgroundresponselabs'
                 ,'playgroundrelapselabs'
-                ,'playgroundmolecular']:
+                ,'PlaygroundMutation']:
+        pass
+
+    for tablename in cnxdict['playgroundtablelist']:
 
         cmd = """
                 SELECT 
@@ -2772,15 +3004,20 @@ def DownloadPlaygroundForRedCapUpload(cnxdict):
         cmd = """
             SELECT * FROM `{0}`.`{1}` ORDER BY Arrival_Id;
         """.format(schema,tablename)
+
         filedescription = '{}'.format(tablename)
+
         cnxdict['out_filepath'] = buildfilepath(cnxdict, DisplayPath=True, filename=filedescription[0:28], fileext='xlsx')
+
         writer = pd.ExcelWriter(cnxdict['out_filepath'],datetime_format='mm/dd/yyyy')  # datetime_format='mmm d yyyy hh:mm:ss'
+
         df = pd.read_sql(cmd, cnxdict['cnx'])
         df.to_excel(writer, sheet_name=tablename, index=False)
         dowritersave(writer, cnxdict)
-        wb = pyexcel.load_book(cnxdict['out_filepath'])
-        cnxdict['out_csvpath'] = buildfilepath(cnxdict, DisplayPath=True, filename=tablename, fileext='csv')
-        wb[0].save_as(cnxdict['out_csvpath'])
+        if 0:
+            wb = pyexcel.load_book(cnxdict['out_filepath'])
+            cnxdict['out_csvpath'] = buildfilepath(cnxdict, DisplayPath=True, filename=tablename, fileext='csv')
+            wb[0].save_as(cnxdict['out_csvpath'])
 
 
 """
@@ -2794,7 +3031,7 @@ def MainProcedureCalls(cnxdict):
 
     cnxdict['EchoSQL']=1  # 0 = no output
 
-    if 0:
+    if 0:  # Do all procedures when true
         # --------------------------------------------------------------------------------------------------------------
         # Call procedure to arrival with previous and next table used to link tables
         CreatePrevNextArrivalTable(cnxdict)
@@ -2806,7 +3043,7 @@ def MainProcedureCalls(cnxdict):
         CreatePlaygroundTemplate(cnxdict)
         # --------------------------------------------------------------------------------------------------------------
         #
-        CreatePlaygroundMolecularTemplate(cnxdict)
+        CreatePlaygroundMutationTemplate(cnxdict)
         # --------------------------------------------------------------------------------------------------------------
         #
         CreatePlaygroundLabsTemplate(cnxdict)
@@ -2859,33 +3096,39 @@ def MainProcedureCalls(cnxdict):
         # Date ranges for finding information linked to key events:  Dx, Arrival, Rx, Response, Relapse
         CreateEventDateRange(cnxdict)
         # --------------------------------------------------------------------------------------------------------------
-        # Query lab data to create vdatasetmolecular table
-        CreateMolecularTable(cnxdict)
-        # CreateCommonLabTables(cnxdict)
-
+        # Query lab data to create vdatasetmutation table
+        CreateMutationTable(cnxdict)
         # --------------------------------------------------------------------------------------------------------------
-        # Associate the molecular lab data with each arrival timepoint -- tons of fields
+        # Create table containing all mutations related to the patient
+        CreatePlaygroundAllMutationTable(cnxdict)
+        # --------------------------------------------------------------------------------------------------------------
+        # Create subtables to decrease the time needed for queries
+        CreatePlaygroundLabSubTables(cnxdict)
+        # CreateCommonLabTables(cnxdict) # depreciated
+        # --------------------------------------------------------------------------------------------------------------
+        # Associate the lab data and mutation data with each arrival timepoint -- tons of fields
         AssociateLabs(cnxdict)
-        # AssociateCommonLabs(cnxdict)
+    if 1:
+        # AssociateCommonLabs(cnxdict) # depreciated
         # --------------------------------------------------------------------------------------------------------------
         # Range tables contain the StartDateRange, TargetDate, and EndDateRange values which represent dates in
         # which to look for valid testing results for a patient in order for them to be relevant for a patient event
         # such as "diagnosis" or "treatment start".  Since the time range of valid tests varies with the particular
         # test or event, a new range table is created for dis-similar tests.
-        # CreateMolecularTestRange(cnxdict)
-
+        # CreateMolecularTestRange(cnxdict) # depriciated?
         # --------------------------------------------------------------------------------------------------------------
         # Copy updated playground to Jake
         # PushPlaygroundTables(cnxdict, 'jake_caisis')
-
         # --------------------------------------------------------------------------------------------------------------
         # Copy updated playground to playgrounddatabase
         # PushPlaygroundTables(cnxdict, 'playgrounddatabase')
-
+        # --------------------------------------------------------------------------------------------------------------
+        # Builds a dictionary table that is ready for upload to redcap
         BuildRedCapDictionary(cnxdict)
 
-
-    DownloadPlaygroundForRedCapUpload(cnxdict)
+        # --------------------------------------------------------------------------------------------------------------
+        # Builds csv files matching the redcapdictionary ready for redcap import
+        DownloadPlaygroundForRedCapUpload(cnxdict)
 
 # Depriciated
 # Call sql script to build a table framework for the playground
@@ -2919,19 +3162,26 @@ def OutputProcedures(cnxdict):
 
 parameter_dict = {}
 add_to_dict(parameter_dict,'timelist',['Diagnosis','Arrival','Treatment','Response','Relapse'])
-add_to_dict(parameter_dict
-    , 'playgroundtablelist'
-        ,['playground'
-        , 'playgrounddiagnosislabs'
-        , 'playgroundarrivallabs'
-        , 'playgroundtreatmentlabs'
-        , 'playgroundresponselabs'
-        , 'playgroundrelapselabs'
-        , 'playgroundmolecular'] )
+add_to_dict(parameter_dict,'lablist',['ANC', 'ALB', 'BLAST', 'CREAT', 'FLUID', 'HCT', 'HGB', 'PLT', 'RBC', 'UNCLASS', 'WBC', 'BILI', 'GFRBL', 'GFRNB'])
+add_to_dict(parameter_dict,'mutlist',['FLT3', 'NPM1', 'CEBPA', 'MUT'])
+add_to_dict(parameter_dict, 'playgroundtablelist',['playground','playgroundallmutation','playgroundmutation'])
 
-add_to_dict(parameter_dict,'lablist',['ANC', 'ALB', 'BLAST', 'CREAT', 'FLUID', 'HCT', 'HGB', 'PLT',
-                                       'RBC', 'UNCLASS', 'WBC', 'BILI', 'GFRBL', 'GFRNB'])
-add_to_dict(parameter_dict,'molelist',['FLT3', 'NPM1', 'CEBPA', 'MUT'])
+
+
+for timepoint in parameter_dict['timelist']:
+    parameter_dict['playgroundtablelist'].append('playground{0}labs'.format(timepoint.lower()))
+
+"""
+    These tables are NOT needed in the RedCap Playground.  They do not have 
+    an arrival_id so it would be a waste of time.
+    for labtest in parameter_dict['lablist']:
+        parameter_dict['playgroundtablelist'].append('playground{0}'.format(labtest.lower()))
+    for muttype in parameter_dict['mutlist']:
+        parameter_dict['playgroundtablelist'].append('playground{0}'.format(muttype.lower()))
+"""
+
+df = pd.read_csv('h:\\temp\export\\junk.csv')
+print(df)
 
 cnxdict = connect_to_mysql_db_prod('newplayground',parameter_dict)
 
@@ -2947,7 +3197,7 @@ MainProcedureCalls(cnxdict)
 # UpdateArrivalIdMapping(cnxdict)
 # CreatePrevNextArrivalTable(cnxdict)
 # UpdateArrivalIdMapping(cnxdict)
-# CreatePlaygroundMolecularTemplate(cnxdict)
+# CreatePlaygroundMutationTemplate(cnxdict)
 # AssociateLabs(cnxdict)
 # BuildRedCapDictionary(cnxdict)
 # DownloadPlaygroundForRedCapUpload(cnxdict)
@@ -2981,7 +3231,5 @@ SELECT  a.arrival_id, a.patientid, a.arrivaldate
     ON a.PatientId = c.PatientId and b.ProcedureId = c.ProcedureId
     GROUP BY a.arrival_id
     ORDER BY a.arrival_id, ProcDate; 
-
-
 
 """
