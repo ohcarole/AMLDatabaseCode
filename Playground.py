@@ -2913,44 +2913,103 @@ def PushPlaygroundTables(cnxdict,targetdatabase='jake_caisis'):
     return
 
 
+def CreateCurrentRedCapDataDictionary():
+    buf = cStringIO.StringIO()
+    data = {
+        'token': 'E94008480416409AB50A29998F9C208A',
+        'content': 'metadata',
+        'format': 'csv',
+        'returnFormat': 'csv'
+    }
+    ch = pycurl.Curl()
+    ch.setopt(ch.URL, 'https://cdsweb07.fhcrc.org/redcap/api/')
+    ch.setopt(ch.HTTPPOST, data.items())
+    ch.setopt(ch.WRITEFUNCTION, buf.write)
+    ch.perform()
+    ch.close()
+
+    # str_input = pd.compat.StringIO(buf.getvalue())
+
+    tempdict = read_db_config('caisiswork')
+    engine = create_engine(
+        'mysql+mysqldb://{0}:{1}@MYSQL-DB-PRD/caisis'.format(tempdict['mysqluser'], tempdict['mysqlpwd'],
+                                                             collation='Latin1_General'))
+    df = pd.read_table(pd.compat.StringIO(buf.getvalue()), sep=",")
+    df.to_sql('currentredcapdatadictionary', engine, if_exists='replace', index=0)
+
+    buf.close()
+
+
 def BuildRedCapDictionary(cnxdict):
     cnxdict['sql'] = ''
     unioncmd  = ''
     schema = 'caisis'
-    for tablename in ['playground'
-                ,'playgrounddiagnosislabs'
-                ,'playgroundarrivallabs'
-                ,'playgroundtreatmentlabs'
-                ,'playgroundresponselabs'
-                ,'playgroundrelapselabs'
-                ,'PlaygroundMutation']:
-        pass
+    # for tablename in ['playground'
+    #             ,'playgrounddiagnosislabs'
+    #             ,'playgroundarrivallabs'
+    #             ,'playgroundtreatmentlabs'
+    #             ,'playgroundresponselabs'
+    #             ,'playgroundrelapselabs'
+    #             ,'PlaygroundMutation']:
+    #     pass
 
     for tablename in cnxdict['playgroundtablelist']:
 
+        """
+            Relying on OLD information here.  Need to check columns are not duplicates before adding them.  Compare
+            RedCap to the fields I want to add in.  Should not have overlap.  Case in point "response".  
+        """
+
+        # cmd = """
+        #         SELECT
+        #               lower(COLUMN_NAME) AS `Variable / Field Name`
+        #             , TABLE_NAME AS `Form Name`
+        #             , '' as `Section Header`
+        #             , 'text' AS `Field Type`
+        #             , COLUMN_NAME AS `Field Label`
+        #             , '' AS `Choices, Calculations, OR Slider Labels`
+        #             , '' AS `Field Note`
+        #             , CASE
+        #                 WHEN DATA_TYPE = 'datetime' THEN 'date_ymd'
+        #                 ELSE ''
+        #             END AS `Text Validation Type OR Show Slider Number`
+        #             , CAST(NULL AS CHAR(64)) AS `Text Validation Min`
+        #             , CAST(NULL AS CHAR(64)) AS `Text Validation Max`
+        #             , CAST(NULL AS CHAR(64)) AS `Identifier?`
+        #             , CAST(NULL AS CHAR(64)) AS `Branching Logic (Show field only if...)`
+        #             , CAST(NULL AS CHAR(64)) AS `Required Field?`
+        #             , CAST(NULL AS CHAR(64)) AS `Custom Alignment`
+        #             , CAST(NULL AS CHAR(64)) AS `Question Number (surveys only)`
+        #             , CAST(NULL AS CHAR(64)) AS `Matrix Group Name`
+        #             , CAST(NULL AS CHAR(64)) AS `Matrix Ranking?`
+        #             , CAST(NULL AS CHAR(64)) AS `Field Annotation`
+        #           FROM INFORMATION_SCHEMA.COLUMNS
+        #           WHERE table_name = '{0}'
+        #             AND table_schema = 'caisis'
+        # """.format(tablename.lower(), schema)
         cmd = """
                 SELECT 
-                      lower(COLUMN_NAME) AS `Variable / Field Name`
-                    , TABLE_NAME AS `Form Name`
-                    , '' as `Section Header`
-                    , 'text' AS `Field Type`
-                    , COLUMN_NAME AS `Field Label`
-                    , '' AS `Choices, Calculations, OR Slider Labels`
-                    , '' AS `Field Note`
+                      lower(COLUMN_NAME) AS field_name
+                    , lower(TABLE_NAME) AS form_name
+                    , CAST(NULL AS CHAR(64)) as section_header
+                    , 'text' AS field_type
+                    , COLUMN_NAME AS field_label
+                    , CAST(NULL AS CHAR(64)) AS select_choices_or_calculations
+                    , CAST(NULL AS CHAR(64)) AS field_note
                     , CASE 
                         WHEN DATA_TYPE = 'datetime' THEN 'date_ymd'
-                        ELSE ''
-                    END AS `Text Validation Type OR Show Slider Number`
-                    , '' AS `Text Validation Min`
-                    , '' AS `Text Validation Max`
-                    , '' AS `Identifier?`
-                    , '' AS `Branching Logic (Show field only if...)`
-                    , '' AS `Required Field?`
-                    , '' AS `Custom Alignment`
-                    , '' AS `Question Number (surveys only)`
-                    , '' AS `Matrix Group Name`
-                    , '' AS `Matrix Ranking?`
-                    , '' AS `Field Annotation`
+                        ELSE , CAST(NULL AS CHAR(64)) 
+                    END AS text_validation_type_or_show_slider_number
+                    , CAST(NULL AS CHAR(64)) AS text_validation_min
+                    , CAST(NULL AS CHAR(64)) AS text_validation_max
+                    , CAST(NULL AS CHAR(64)) AS identifier
+                    , CAST(NULL AS CHAR(64)) AS branching_logic
+                    , CAST(NULL AS CHAR(64)) AS required_field
+                    , CAST(NULL AS CHAR(64)) AS custom_alignment
+                    , CAST(NULL AS CHAR(64)) AS question_number
+                    , CAST(NULL AS CHAR(64)) AS matrix_group_name
+                    , CAST(NULL AS CHAR(64)) AS matrix_ranking
+                    , CAST(NULL AS CHAR(64)) AS field_annotation
                   FROM INFORMATION_SCHEMA.COLUMNS
                   WHERE table_name = '{0}' 
                     AND table_schema = 'caisis' 
@@ -2961,8 +3020,125 @@ def BuildRedCapDictionary(cnxdict):
         DROP TABLE IF EXISTS caisis.vdatasetRedCapStructure ;
         CREATE TABLE caisis.vdatasetRedCapStructure {0} ; 
         DELETE FROM caisis.vdatasetRedCapStructure WHERE `Variable / Field Name` = 'arrival_id' AND `Form Name` != 'playground';
+        # ALTER TABLE `caisis`.`vdatasetRedCapStructure` 
+        #       CHANGE COLUMN `Variable / Field Name` `field_name` VARCHAR(64) NULL DEFAULT NULL
+        #     , CHANGE COLUMN `Form Name`             `form_name` VARCHAR(64) NULL DEFAULT NULL
+        #     , CHANGE COLUMN `Section Header`        `section_header` VARCHAR(64) NULL DEFAULT NULL 
+        #     , CHANGE COLUMN `Field Type`            `field_type` VARCHAR(64) NULL DEFAULT NULL 
+        #     , CHANGE COLUMN `Field Label`           `field_label` VARCHAR(64) NULL DEFAULT NULL 
+        #     , CHANGE COLUMN `Choices, Calculations, OR Slider Labels` `select_choices_or_calculations` VARCHAR(64) NULL DEFAULT NULL 
+        #     , CHANGE COLUMN `Field Note` `field_note` VARCHAR(64) NULL DEFAULT NULL 
+        #     , CHANGE COLUMN `Text Validation Type OR Show Slider Number` `text_validation_type_or_show_slider_number` VARCHAR(64) NULL DEFAULT NULL 
+        #     , CHANGE COLUMN `Text Validation Min` `text_validation_min` VARCHAR(64) NULL DEFAULT NULL 
+        #     , CHANGE COLUMN `Text Validation Max` `text_validation_max` VARCHAR(64) NULL DEFAULT NULL 
+        #     , CHANGE COLUMN `Identifier?` `identifier` VARCHAR(64) NULL DEFAULT NULL 
+        #     , CHANGE COLUMN `Branching Logic (Show field only if...)` `branching_logic` VARCHAR(64) NULL DEFAULT NULL 
+        #     , CHANGE COLUMN `Required Field?` `required_field` VARCHAR(64) NULL DEFAULT NULL 
+        #     , CHANGE COLUMN `Custom Alignment` `custom_alignment` VARCHAR(64) NULL DEFAULT NULL 
+        #     , CHANGE COLUMN `Question Number (surveys only)` `question_number` VARCHAR(64) NULL DEFAULT NULL    
+        #     , CHANGE COLUMN `Matrix Group Name` `matrix_group_name` VARCHAR(64) NULL DEFAULT NULL    
+        #     , CHANGE COLUMN `Matrix Ranking?` `matrix_ranking` VARCHAR(64) NULL DEFAULT NULL    
+        #     , CHANGE COLUMN `Field Annotation` `field_annotation` VARCHAR(64) NULL DEFAULT NULL  ;
+
+        -- Not found in current dictionary
+        DROP TABLE IF EXISTS temp.redcapimportfields ;
+        CREATE TABLE temp.redcapimportfields
+            SELECT b.*
+                FROM currentredcapdatadictionary a
+                RIGHT JOIN vdatasetRedCapStructure b
+                    ON a.field_name = b.field_name
+                    AND a.form_name = b.form_name
+                WHERE a.form_name IS NULL ;
+        
+        DELETE FROM temp.redcapimportfields WHERE field_name = 'arrival_id' and form_name !=  'playground' ;
+
+        UPDATE temp.redcapimportfields b, temp.redcapfieldstokeep a
+            SET b.field_type = a.field_type 
+                , b.field_label = a.field_label
+                , b.select_choices_or_calculations = a.select_choices_or_calculations 
+                WHERE a.field_name = b.field_name ;
+        
+        UPDATE temp.redcapimportfields 
+            SET text_validation_type_or_show_slider_number = 
+                    CASE
+                        WHEN field_name like '%date%' THEN 'date_ymd'
+                        ELSE NULL
+                    END ;
+        
+        DROP TABLE IF EXISTS caisis.vdatasetRedCapStructure ;
+        CREATE TABLE caisis.vdatasetRedCapStructure 
+            SELECT a.* FROM currentredcapdatadictionary a 
+                WHERE a.field_name = 'arrival_id'
+                UNION
+                    SELECT * FROM (SELECT c.* FROM currentredcapdatadictionary c 
+                        WHERE c.form_name = 'playground' and c.field_name != 'arrival_id'
+                        UNION
+                    SELECT d.* FROM temp.redcapimportfields d 
+                        WHERE d.form_name = 'playground' and d.field_name != 'arrival_id' 
+                        ORDER BY field_name) e
+                UNION
+                    SELECT * FROM (SELECT c.* FROM currentredcapdatadictionary c 
+                        WHERE c.form_name != 'playground' AND c.form_name like 'playground%'
+                        UNION
+                    SELECT d.* FROM temp.redcapimportfields d 
+                        WHERE d.form_name != 'playground' AND d.form_name like 'playground%' 
+                        ORDER BY form_name, field_name) f
+                UNION
+                    SELECT * FROM (SELECT c.* FROM currentredcapdatadictionary c 
+                        WHERE c.form_name not like 'playground%'
+                        UNION
+                    SELECT d.* FROM temp.redcapimportfields d 
+                        WHERE d.form_name not like 'playground%'
+                        ORDER BY form_name, field_name) g;
     """.format(cnxdict['sql'] )
     dosqlexecute(cnxdict)
+
+    """
+    
+    -- Not found in current dictionary
+    DROP TABLE IF EXISTS temp.redcapimportfields ;
+    CREATE TABLE temp.redcapimportfields
+        SELECT b.*
+            FROM currentredcapdatadictionary a
+            RIGHT JOIN importredcapdictionary b
+                ON a.field_name = b.field_name
+                AND a.form_name = b.form_name
+            WHERE a.form_name IS NULL ;
+    
+    DELETE FROM temp.redcapimportfields WHERE field_name = 'arrival_id' and form_name !=  'playground' ;
+    
+    UPDATE temp.redcapimportfields b, temp.redcapfieldstokeep a
+        SET b.field_type = a.field_type 
+            , b.field_label = a.field_label
+            , b.select_choices_or_calculations = a.select_choices_or_calculations 
+            WHERE a.field_name = b.field_name ;
+    
+    UPDATE temp.redcapimportfields 
+        SET text_validation_type_or_show_slider_number = 
+                CASE
+                    WHEN field_name like '%date%' THEN 'date_ymd'
+                    ELSE NULL
+                END ;
+            
+    -- Already present
+    DROP TABLE IF EXISTS temp.redcapfieldstokeep ;
+    CREATE TABLE temp.redcapfieldstokeep
+        SELECT a.*
+            FROM currentredcapdatadictionary a
+            JOIN importredcapdictionary b
+                ON a.field_name = b.field_name
+                AND a.form_name = b.form_name 
+        UNION
+        SELECT a.*
+            FROM currentredcapdatadictionary a
+            LEFT JOIN importredcapdictionary b
+                ON a.field_name = b.field_name
+                AND a.form_name = b.form_name
+             WHERE b.form_name IS NULL     ;
+             
+    SELECT * FROM temp.redcapimportfields ;
+    SELECT * FROM temp.redcapfieldstokeep ;
+    """
 
     filedescription = 'Playground Data Dictionary'
     filename='{}'.format(filedescription)[0:28]
@@ -3108,7 +3284,6 @@ def MainProcedureCalls(cnxdict):
         # --------------------------------------------------------------------------------------------------------------
         # Associate the lab data and mutation data with each arrival timepoint -- tons of fields
         AssociateLabs(cnxdict)
-    if 1:
         # AssociateCommonLabs(cnxdict) # depreciated
         # --------------------------------------------------------------------------------------------------------------
         # Range tables contain the StartDateRange, TargetDate, and EndDateRange values which represent dates in
@@ -3123,9 +3298,14 @@ def MainProcedureCalls(cnxdict):
         # Copy updated playground to playgrounddatabase
         # PushPlaygroundTables(cnxdict, 'playgrounddatabase')
         # --------------------------------------------------------------------------------------------------------------
+
+    if 1:
+        # Creates a table in MySQL's Caisis Schema of the current RedCap Data Dictionary
+        CreateCurrentRedCapDataDictionary()
         # Builds a dictionary table that is ready for upload to redcap
         BuildRedCapDictionary(cnxdict)
 
+    if 0:
         # --------------------------------------------------------------------------------------------------------------
         # Builds csv files matching the redcapdictionary ready for redcap import
         DownloadPlaygroundForRedCapUpload(cnxdict)
@@ -3179,9 +3359,6 @@ for timepoint in parameter_dict['timelist']:
     for muttype in parameter_dict['mutlist']:
         parameter_dict['playgroundtablelist'].append('playground{0}'.format(muttype.lower()))
 """
-
-df = pd.read_csv('h:\\temp\export\\junk.csv')
-print(df)
 
 cnxdict = connect_to_mysql_db_prod('newplayground',parameter_dict)
 
